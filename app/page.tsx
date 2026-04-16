@@ -103,6 +103,95 @@ function urgencyColor(urgencia: string | null) {
   return 'text-gray-400'
 }
 
+type DiagStatus = {
+  status: 'sem_diagnostico' | 'processando' | 'gerado' | 'erro'
+  diagnostico_id?: number
+  versao?: number
+  gerado_em?: string
+  url?: string
+  error_message?: string
+}
+
+function DiagnosticoPanel({ lead }: { lead: Lead }) {
+  const [diag, setDiag] = useState<DiagStatus | null>(null)
+
+  const fetchStatus = useCallback(() => {
+    fetch(`/api/leads/${lead.id}`)
+      .then(r => r.json())
+      .then(setDiag)
+      .catch(() => {})
+  }, [lead.id])
+
+  useEffect(() => {
+    fetchStatus()
+  }, [fetchStatus])
+
+  // Poll while processing
+  useEffect(() => {
+    if (diag?.status !== 'processando') return
+    const interval = setInterval(fetchStatus, 3000)
+    return () => clearInterval(interval)
+  }, [diag?.status, fetchStatus])
+
+  if (!diag) return null
+
+  if (diag.status === 'gerado' && diag.url) {
+    return (
+      <div className="mt-4 flex items-center gap-3">
+        <a
+          href={diag.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm rounded-lg transition-colors"
+        >
+          Ver diagnóstico →
+        </a>
+        {diag.versao && diag.versao > 1 && (
+          <span className="text-gray-500 text-xs">v{diag.versao}</span>
+        )}
+        {diag.gerado_em && (
+          <span className="text-gray-600 text-xs">{formatDate(diag.gerado_em)}</span>
+        )}
+      </div>
+    )
+  }
+
+  if (diag.status === 'processando') {
+    return (
+      <div className="mt-4 flex items-center gap-3">
+        <div className="flex items-center gap-2 px-4 py-2 bg-yellow-900/30 border border-yellow-800 text-yellow-400 text-sm rounded-lg">
+          <span className="animate-pulse">●</span> Gerando diagnóstico...
+        </div>
+        <span className="text-gray-600 text-xs">Atualiza automaticamente</span>
+      </div>
+    )
+  }
+
+  if (diag.status === 'erro') {
+    return (
+      <div className="mt-4">
+        <span className="px-3 py-2 bg-red-900/30 border border-red-800 text-red-400 text-sm rounded-lg">
+          Erro na geração{diag.error_message ? `: ${diag.error_message}` : ''}
+        </span>
+      </div>
+    )
+  }
+
+  // sem_diagnostico
+  return (
+    <div className="mt-4">
+      <button
+        disabled
+        title="Disponível em breve"
+        className="inline-flex items-center gap-2 px-4 py-2 bg-gray-800 border border-gray-700 text-gray-500 text-sm rounded-lg cursor-not-allowed"
+      >
+        Gerar diagnóstico
+        <span className="text-xs text-gray-600">(em breve)</span>
+      </button>
+    </div>
+  )
+}
+
 function Modal({ lead, onClose }: { lead: Lead; onClose: () => void }) {
   const name = [lead.first_name, lead.last_name].filter(Boolean).join(' ') || '—'
   const dores = DORES.filter(d => lead[d.key])
@@ -206,18 +295,7 @@ function Modal({ lead, onClose }: { lead: Lead; onClose: () => void }) {
         )}
 
         {/* Diagnóstico */}
-        {lead.diagnostico_url && (
-          <div className="mt-4">
-            <a
-              href={lead.diagnostico_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm rounded-lg transition-colors"
-            >
-              Ver diagnóstico →
-            </a>
-          </div>
-        )}
+        <DiagnosticoPanel lead={lead} />
       </div>
     </div>
   )
