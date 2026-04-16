@@ -3,6 +3,8 @@ import { Pool } from 'pg'
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: false })
 
+const VALID_STAGES = ['nao_iniciado', 'primeiro_contato', 'follow_up', 'reuniao_agendada', 'no_show', 'ganho', 'perdido']
+
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
   const { id } = params
 
@@ -33,6 +35,25 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     })
   } catch (error) {
     console.error('Error fetching diagnostic status:', error)
+    return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
+  }
+}
+
+export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+  const { id } = params
+
+  try {
+    const body = await req.json()
+    const { stage } = body
+
+    if (!stage || !VALID_STAGES.includes(stage)) {
+      return NextResponse.json({ error: 'Estágio inválido' }, { status: 400 })
+    }
+
+    await pool.query('UPDATE leads SET stage = $1 WHERE id = $2', [stage, id])
+    return NextResponse.json({ ok: true })
+  } catch (error) {
+    console.error('Error updating stage:', error)
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
   }
 }

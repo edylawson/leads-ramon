@@ -53,6 +53,8 @@ export async function GET() {
         intencao_talvez,
         intencao_nao_momento,
         diagnostico_url,
+        stage,
+        phone,
         submit_date,
         stage_date,
         created_at
