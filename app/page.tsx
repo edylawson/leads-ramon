@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 
 type Lead = {
   id: number
@@ -63,6 +63,31 @@ const DORES: { key: keyof Lead; label: string }[] = [
   { key: 'dor_conteudo_preso', label: 'Conteúdo preso na cabeça' },
 ]
 
+function CopyEmail({ email }: { email: string | null }) {
+  const [copied, setCopied] = useState(false)
+  if (!email) return <span className="text-gray-600 text-xs">—</span>
+  const copy = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    navigator.clipboard.writeText(email).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    })
+  }
+  return (
+    <button
+      onClick={copy}
+      title="Clique para copiar"
+      className="text-gray-500 text-xs hover:text-indigo-400 transition-colors flex items-center gap-1 group"
+    >
+      <span className="group-hover:underline">{email}</span>
+      <span className="opacity-0 group-hover:opacity-100 text-[10px]">
+        {copied ? '✓' : '⎘'}
+      </span>
+      {copied && <span className="text-indigo-400 text-[10px]">copiado!</span>}
+    </button>
+  )
+}
+
 function formatDate(dateStr: string | null) {
   if (!dateStr) return '—'
   return new Date(dateStr).toLocaleDateString('pt-BR', {
@@ -109,7 +134,10 @@ function Modal({ lead, onClose }: { lead: Lead; onClose: () => void }) {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
           {/* Contato */}
           <Section title="Contato">
-            <Row label="Email" value={lead.email} />
+            <div className="flex gap-2 items-center">
+              <span className="text-gray-500 shrink-0">Email:</span>
+              <CopyEmail email={lead.email} />
+            </div>
             <Row label="Telefone" value={lead.phone} />
             <Row label="Data" value={formatDate(lead.submit_date || lead.stage_date)} />
           </Section>
@@ -372,7 +400,7 @@ export default function Page() {
                       <td className="px-4 py-3 text-gray-400 hidden sm:table-cell whitespace-nowrap">{formatDate(lead.submit_date || lead.stage_date)}</td>
                       <td className="px-4 py-3">
                         <p className="text-gray-100 font-medium">{name}</p>
-                        <p className="text-gray-500 text-xs">{lead.email}</p>
+                        <CopyEmail email={lead.email} />
                       </td>
                       <td className="px-4 py-3 text-gray-300 hidden md:table-cell">{lead.empresa || '—'}</td>
                       <td className="px-4 py-3 text-gray-400 hidden lg:table-cell">{lead.tipo_negocio || '—'}</td>
@@ -385,8 +413,8 @@ export default function Page() {
                       </td>
                       <td className="px-4 py-3 hidden md:table-cell">
                         {lead.diagnostico_url
-                          ? <a href={lead.diagnostico_url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="text-indigo-400 hover:underline text-xs">Ver →</a>
-                          : <span className="text-gray-600 text-xs">—</span>
+                          ? <a href={lead.diagnostico_url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-indigo-900/50 text-indigo-400 border border-indigo-800 hover:bg-indigo-800/50 transition-colors">Ver →</a>
+                          : <span className="px-2 py-0.5 rounded-full text-xs bg-gray-800/50 text-gray-600 border border-gray-800">Pendente</span>
                         }
                       </td>
                     </tr>
