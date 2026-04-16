@@ -112,7 +112,7 @@ type DiagStatus = {
   error_message?: string
 }
 
-function DiagnosticoPanel({ lead }: { lead: Lead }) {
+function DiagnosticoPanel({ lead, onDiagnosticoFound }: { lead: Lead; onDiagnosticoFound?: (url: string) => void }) {
   const [diag, setDiag] = useState<DiagStatus | null>(null)
 
   const fetchStatus = useCallback(() => {
@@ -132,6 +132,13 @@ function DiagnosticoPanel({ lead }: { lead: Lead }) {
     const interval = setInterval(fetchStatus, 3000)
     return () => clearInterval(interval)
   }, [diag?.status, fetchStatus])
+
+  // Atualiza tabela principal quando diagnóstico é encontrado
+  useEffect(() => {
+    if (diag?.status === 'gerado' && diag.url) {
+      onDiagnosticoFound?.(diag.url)
+    }
+  }, [diag?.status, diag?.url, onDiagnosticoFound])
 
   if (!diag) return null
 
@@ -192,7 +199,7 @@ function DiagnosticoPanel({ lead }: { lead: Lead }) {
   )
 }
 
-function Modal({ lead, onClose }: { lead: Lead; onClose: () => void }) {
+function Modal({ lead, onClose, onDiagnosticoFound }: { lead: Lead; onClose: () => void; onDiagnosticoFound?: (url: string) => void }) {
   const name = [lead.first_name, lead.last_name].filter(Boolean).join(' ') || '—'
   const dores = DORES.filter(d => lead[d.key])
 
@@ -295,7 +302,7 @@ function Modal({ lead, onClose }: { lead: Lead; onClose: () => void }) {
         )}
 
         {/* Diagnóstico */}
-        <DiagnosticoPanel lead={lead} />
+        <DiagnosticoPanel lead={lead} onDiagnosticoFound={onDiagnosticoFound} />
       </div>
     </div>
   )
@@ -505,7 +512,13 @@ export default function Page() {
         <p className="text-gray-600 text-xs mt-3">{filtered.length} lead{filtered.length !== 1 ? 's' : ''} exibido{filtered.length !== 1 ? 's' : ''}</p>
       </div>
 
-      {selected && <Modal lead={selected} onClose={() => setSelected(null)} />}
+      {selected && (
+        <Modal
+          lead={selected}
+          onClose={() => setSelected(null)}
+          onDiagnosticoFound={(url) => setLeads(prev => prev.map(l => l.id === selected.id ? { ...l, diagnostico_url: url } : l))}
+        />
+      )}
     </div>
   )
 }
