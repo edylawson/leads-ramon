@@ -403,12 +403,21 @@ export default function Page() {
   const partial = leads.filter(l => l.response_type === 'partial').length
 
   const handleStageChange = (leadId: number, stage: string) => {
+    const previous = leads.find(l => l.id === leadId)?.stage ?? 'nao_iniciado'
     setLeads(prev => prev.map(l => l.id === leadId ? { ...l, stage } : l))
     fetch(`/api/leads/${leadId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ stage }),
-    }).catch(() => {})
+    })
+      .then(res => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      })
+      .catch(() => {
+        // Reverte se falhar
+        setLeads(prev => prev.map(l => l.id === leadId ? { ...l, stage: previous } : l))
+        alert('Erro ao salvar estágio. Tente novamente.')
+      })
   }
 
   return (

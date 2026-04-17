@@ -50,7 +50,10 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       return NextResponse.json({ error: 'Estágio inválido' }, { status: 400 })
     }
 
-    await pool.query('UPDATE leads SET stage = $1 WHERE id = $2', [stage, id])
+    await pool.query(
+      'UPDATE leads SET stage = $1, stage_date = NOW() WHERE id = $2',
+      [stage, id]
+    )
     return NextResponse.json({ ok: true })
   } catch (error) {
     console.error('Error updating stage:', error)
