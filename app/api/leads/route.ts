@@ -63,7 +63,12 @@ export async function GET() {
       FROM leads
       ORDER BY COALESCE(submit_date, stage_date) DESC NULLS LAST
     `)
-    return NextResponse.json(result.rows)
+    return NextResponse.json(result.rows, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+        'Pragma': 'no-cache',
+      },
+    })
   } catch (error) {
     console.error('DB error:', error)
     return NextResponse.json({ error: 'Erro ao buscar leads' }, { status: 500 })
