@@ -133,6 +133,8 @@ type DiagStatus = {
 
 function DiagnosticoPanel({ lead, onDiagnosticoFound }: { lead: Lead; onDiagnosticoFound?: (url: string) => void }) {
   const [diag, setDiag] = useState<DiagStatus | null>(null)
+  const [gerando, setGerando] = useState(false)
+  const [erroGerar, setErroGerar] = useState<string | null>(null)
 
   const fetchStatus = useCallback(() => {
     fetch(`/api/leads/${lead.id}`)
@@ -158,6 +160,24 @@ function DiagnosticoPanel({ lead, onDiagnosticoFound }: { lead: Lead; onDiagnost
       onDiagnosticoFound?.(diag.url)
     }
   }, [diag?.status, diag?.url, onDiagnosticoFound])
+
+  const handleGerar = async () => {
+    setGerando(true)
+    setErroGerar(null)
+    try {
+      const res = await fetch('/api/diagnostics/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lead_id: lead.id }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Erro desconhecido')
+      setDiag({ status: 'processando' })
+    } catch (e: unknown) {
+      setErroGerar(e instanceof Error ? e.message : 'Erro ao iniciar geração')
+      setGerando(false)
+    }
+  }
 
   if (!diag) return null
 
@@ -204,27 +224,6 @@ function DiagnosticoPanel({ lead, onDiagnosticoFound }: { lead: Lead; onDiagnost
   }
 
   // sem_diagnostico
-  const [gerando, setGerando] = useState(false)
-  const [erroGerar, setErroGerar] = useState<string | null>(null)
-
-  const handleGerar = async () => {
-    setGerando(true)
-    setErroGerar(null)
-    try {
-      const res = await fetch('/api/diagnostics/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ lead_id: lead.id }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Erro desconhecido')
-      setDiag({ status: 'processando' })
-    } catch (e: unknown) {
-      setErroGerar(e instanceof Error ? e.message : 'Erro ao iniciar geração')
-      setGerando(false)
-    }
-  }
-
   return (
     <div className="mt-4 flex flex-col gap-2">
       <button
