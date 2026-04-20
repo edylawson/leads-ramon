@@ -2,6 +2,12 @@
 
 import { useEffect, useState, useCallback } from 'react'
 
+type Responsavel = {
+  id: number
+  nome: string
+  email: string | null
+}
+
 type Lead = {
   id: number
   response_id: string
@@ -49,6 +55,8 @@ type Lead = {
   stage: string
   submit_date: string | null
   stage_date: string | null
+  responsavel_id: number | null
+  responsavel_nome: string | null
 }
 
 const STAGES: { value: string; label: string; color: string; bg: string; border: string }[] = [
@@ -242,7 +250,13 @@ function DiagnosticoPanel({ lead, onDiagnosticoFound }: { lead: Lead; onDiagnost
   )
 }
 
-function Modal({ lead, onClose, onDiagnosticoFound }: { lead: Lead; onClose: () => void; onDiagnosticoFound?: (url: string) => void }) {
+function Modal({ lead, onClose, onDiagnosticoFound, responsaveis, onResponsavelChange }: {
+  lead: Lead
+  onClose: () => void
+  onDiagnosticoFound?: (url: string) => void
+  responsaveis: Responsavel[]
+  onResponsavelChange: (leadId: number, responsavel_id: number | null) => void
+}) {
   const name = [lead.first_name, lead.last_name].filter(Boolean).join(' ') || '—'
   const dores = DORES.filter(d => lead[d.key])
 
@@ -279,6 +293,19 @@ function Modal({ lead, onClose, onDiagnosticoFound }: { lead: Lead; onClose: () 
             </div>
             <Row label="Telefone" value={lead.phone} />
             <Row label="Data" value={formatDate(lead.submit_date || lead.stage_date)} />
+            <div className="flex gap-2 items-center pt-1">
+              <span className="text-gray-500 shrink-0 text-sm">Responsável:</span>
+              <select
+                value={lead.responsavel_id ?? ''}
+                onChange={e => onResponsavelChange(lead.id, e.target.value ? Number(e.target.value) : null)}
+                className="text-xs rounded-lg px-2 py-1 border border-gray-700 bg-gray-800 text-gray-300 cursor-pointer focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              >
+                <option value="">Sem responsável</option>
+                {responsaveis.map(r => (
+                  <option key={r.id} value={r.id} className="bg-gray-900">{r.nome}</option>
+                ))}
+              </select>
+            </div>
           </Section>
 
           {/* Negócio */}
@@ -394,12 +421,17 @@ export default function Page() {
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [loading, setLoading] = useState(true)
+  const [responsaveis, setResponsaveis] = useState<Responsavel[]>([])
 
   useEffect(() => {
     fetch('/api/leads')
       .then(r => r.json())
       .then(data => { setLeads(data); setLoading(false) })
       .catch(() => setLoading(false))
+    fetch('/api/responsaveis')
+      .then(r => r.json())
+      .then(setResponsaveis)
+      .catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -437,14 +469,26 @@ export default function Page() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ stage }),
     })
-      .then(res => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      })
+      .then(res => { if (!res.ok) throw new Error(`HTTP ${res.status}`) })
       .catch(() => {
-        // Reverte se falhar
         setLeads(prev => prev.map(l => l.id === leadId ? { ...l, stage: previous } : l))
         alert('Erro ao salvar estágio. Tente novamente.')
       })
+  }
+
+  const handleResponsavelChange = (leadId: number, responsavel_id: number | null) => {
+    const resp = responsaveis.find(r => r.id === responsavel_id) ?? null
+    setLeads(prev => prev.map(l => l.id === leadId
+      ? { ...l, responsavel_id, responsavel_nome: resp?.nome ?? null }
+      : l
+    ))
+    fetch(`/api/leads/${leadId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ responsavel_id }),
+    })
+      .then(res => { if (!res.ok) throw new Error(`HTTP ${res.status}`) })
+      .catch(() => alert('Erro ao salvar responsável. Tente novamente.'))
   }
 
   return (
@@ -532,6 +576,7 @@ export default function Page() {
                   <th className="text-left px-4 py-3 hidden lg:table-cell">Faturamento</th>
                   <th className="text-left px-4 py-3 hidden md:table-cell">WhatsApp</th>
                   <th className="text-left px-4 py-3 hidden md:table-cell">Estágio</th>
+                  <th className="text-left px-4 py-3 hidden md:table-cell">Responsável</th>
                   <th className="text-left px-4 py-3">Status</th>
                   <th className="text-left px-4 py-3 hidden md:table-cell">Diagnóstico</th>
                 </tr>
@@ -585,6 +630,18 @@ export default function Page() {
                           )
                         })()}
                       </td>
+                      <td className="px-4 py-3 hidden md:table-cell" onClick={e => e.stopPropagation()}>
+                        <select
+                          value={lead.responsavel_id ?? ''}
+                          onChange={e => handleResponsavelChange(lead.id, e.target.value ? Number(e.target.value) : null)}
+                          className="text-xs rounded-lg px-2 py-1 border border-gray-700 bg-gray-800/60 text-gray-300 cursor-pointer focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        >
+                          <option value="">—</option>
+                          {responsaveis.map(r => (
+                            <option key={r.id} value={r.id} className="bg-gray-900 text-gray-100">{r.nome}</option>
+                          ))}
+                        </select>
+                      </td>
                       <td className="px-4 py-3">
                         {lead.response_type === 'completed'
                           ? <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-900/50 text-green-400 border border-green-800">Completo</span>
@@ -612,6 +669,8 @@ export default function Page() {
           lead={selected}
           onClose={() => setSelected(null)}
           onDiagnosticoFound={(url) => setLeads(prev => prev.map(l => l.id === selected.id ? { ...l, diagnostico_url: url } : l))}
+          responsaveis={responsaveis}
+          onResponsavelChange={handleResponsavelChange}
         />
       )}
     </div>

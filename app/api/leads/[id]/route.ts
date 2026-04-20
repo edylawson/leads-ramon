@@ -44,19 +44,27 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
   try {
     const body = await req.json()
-    const { stage } = body
+    const { stage, responsavel_id } = body
 
-    if (!stage || !VALID_STAGES.includes(stage)) {
-      return NextResponse.json({ error: 'Estágio inválido' }, { status: 400 })
+    // Atualiza estágio
+    if (stage !== undefined) {
+      if (!VALID_STAGES.includes(stage)) {
+        return NextResponse.json({ error: 'Estágio inválido' }, { status: 400 })
+      }
+      await pool.query('UPDATE leads SET stage = $1 WHERE id = $2', [stage, id])
     }
 
-    await pool.query(
-      'UPDATE leads SET stage = $1 WHERE id = $2',
-      [stage, id]
-    )
+    // Atualiza responsável (aceita null para remover)
+    if (responsavel_id !== undefined) {
+      await pool.query(
+        'UPDATE leads SET responsavel_id = $1 WHERE id = $2',
+        [responsavel_id || null, id]
+      )
+    }
+
     return NextResponse.json({ ok: true })
   } catch (error) {
-    console.error('Error updating stage:', error)
+    console.error('Error updating lead:', error)
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
   }
 }
