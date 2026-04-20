@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Diagnóstico High Digital</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0e1117;--bg-card:linear-gradient(145deg,#171c28,#0e1117);
+  --fg:#f2f2f2;--fg-secondary:#b8bcc8;--fg-muted:#6b7280;
+  --gold:#daa520;--gold-light:#f5d060;--gold-gradient:linear-gradient(135deg,#daa520,#f5d060);
+  --border:#1e2433;--border-gold:rgba(218,165,32,.25);
+  --success:#3bb87a;--warning:#e8960c;--danger:#e54545;--info:#4a9af5;
+  --shadow-gold:0 0 40px rgba(218,165,32,.15);--shadow-card:0 4px 24px rgba(0,0,0,.3);
+  --font-display:'Montserrat',system-ui,sans-serif;--font-body:'Open Sans',system-ui,sans-serif;
+  --radius:12px;
+}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-body);line-height:1.6;-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4,h5,h6{font-family:var(--font-display);line-height:1.2}
+.container{max-width:960px;margin:0 auto;padding:0 20px}
+.container-lg{max-width:1100px;margin:0 auto;padding:0 20px}
+.text-center{text-align:center}
+.section{padding:64px 0}
+.section-label{font-size:11px;color:var(--gold);font-weight:600;text-transform:uppercase;letter-spacing:3px;display:block;margin-bottom:12px}
+.divider{height:1px;max-width:800px;margin:0 auto;background:linear-gradient(90deg,transparent,var(--border),transparent)}
+
+/* HERO */
+.hero{position:relative;overflow:hidden;padding:64px 0 80px;z-index:1}
+.hero::before{content:'';position:absolute;top:-40%;left:50%;transform:translateX(-50%);width:1000px;height:800px;background:radial-gradient(ellipse at center, rgba(74, 154, 245, 0.12) 0%, transparent 60%);z-index:-1;pointer-events:none}
+.hero h1{font-size:clamp(2.2rem,5vw,3.5rem);font-weight:700;margin-bottom:12px}
+.hero .tagline{color:var(--fg-muted);font-size:clamp(.9rem,2vw,1.1rem);margin-bottom:40px}
+.hero-icon{width:40px;height:40px;border-radius:10px;background:rgba(218,165,32,.1);border:1px solid rgba(218,165,32,.2);display:flex;align-items:center;justify-content:center;margin:0 auto 12px}
+.hero-icon svg{width:20px;height:20px;color:var(--gold);fill:none;stroke:currentColor;stroke-width:2}
+.hero-label{font-size:11px;color:var(--fg-muted);font-weight:500;text-transform:uppercase;letter-spacing:2px}
+
+/* SCORE RING */
+.score-ring-wrap{display:flex;justify-content:center;padding:16px 0}
+.score-ring{position:relative;width:220px;height:220px}
+.score-ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.score-ring .track{fill:none;stroke:var(--border);stroke-width:8}
+.score-ring .fill{fill:none;stroke:url(#goldGrad);stroke-width:8;stroke-linecap:round;transition:stroke-dashoffset 1.5s ease-out}
+.score-ring-inner{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.score-ring-value{font-family:var(--font-display);font-size:52px;font-weight:800;background:var(--gold-gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.score-ring-max{font-size:13px;color:var(--fg-muted);margin-top:-4px}
+.score-ring-label{margin-top:8px;font-size:12px;color:var(--gold);font-weight:600;text-transform:uppercase;letter-spacing:1.5px;padding:4px 14px;border:1px solid var(--border-gold);border-radius:99px;background:rgba(218,165,32,.06)}
+
+/* EXEC SUMMARY */
+.summary h2{font-size:clamp(1.3rem,3vw,1.8rem);font-weight:700;margin-bottom:24px;line-height:1.35}
+.summary p{color:var(--fg-secondary);font-size:clamp(.9rem,1.5vw,1.05rem);max-width:780px;margin:0 auto}
+
+/* TOP 3 PROBLEMAS CRÍTICOS */
+.top3-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+@media(max-width:768px){.top3-grid{grid-template-columns:1fr}}
+.top3-card{background:var(--bg-card);border:1px solid rgba(229,69,69,.2);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow-card);position:relative;overflow:hidden}
+.top3-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--danger),rgba(229,69,69,.3))}
+.top3-num{font-family:var(--font-display);font-size:11px;font-weight:700;color:var(--danger);text-transform:uppercase;letter-spacing:2px;margin-bottom:12px;display:flex;align-items:center;gap:6px}
+.top3-num svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2}
+.top3-card h3{font-family:var(--font-display);font-size:15px;font-weight:700;margin-bottom:10px;line-height:1.3}
+.top3-card .desc{font-size:13px;color:var(--fg-secondary);line-height:1.7;margin-bottom:14px}
+.top3-impacto{background:rgba(229,69,69,.06);border:1px solid rgba(229,69,69,.15);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--danger);line-height:1.5}
+.top3-urgencia{margin-top:10px;font-size:11px;color:var(--fg-muted);display:flex;align-items:center;gap:4px}
+
+/* RADAR */
+.radar-wrap{display:flex;justify-content:center;margin-bottom:48px}
+.radar-canvas{max-width:100%}
+
+/* SCORE BARS */
+.score-bars{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:20px;margin-top:0}
+.score-bar-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;display:flex;align-items:center;gap:16px}
+.score-bar-num{font-family:var(--font-display);font-size:28px;font-weight:700;min-width:48px;text-align:center}
+.score-bar-info{flex:1;min-width:0}
+.score-bar-info h4{font-size:14px;font-weight:600;margin-bottom:2px}
+.score-bar-info .status{font-size:11px;color:var(--fg-muted)}
+.score-bar-track{height:6px;background:rgba(255,255,255,.06);border-radius:99px;overflow:hidden;margin-top:8px}
+.score-bar-fill{height:100%;border-radius:99px;transition:width 1.5s ease-out}
+
+/* PILLAR SECTIONS */
+.pillar{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:16px;box-shadow:var(--shadow-card);transition:border-color .3s}
+.pillar:hover{border-color:rgba(218,165,32,.15)}
+.pillar-header{width:100%;display:flex;align-items:center;gap:16px;padding:20px 24px;cursor:pointer;border:none;background:none;color:inherit;text-align:left;font:inherit}
+.pillar-score{width:64px;height:64px;border-radius:50%;border:2px solid;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.pillar-score span{font-family:var(--font-display);font-size:20px;font-weight:700}
+.pillar-meta{flex:1;min-width:0}
+.pillar-meta h3{font-family:var(--font-display);font-size:clamp(1rem,2vw,1.2rem);font-weight:700}
+.pillar-meta .status{font-size:12px;color:var(--fg-muted);margin-top:2px}
+.pillar-chevron{width:20px;height:20px;color:var(--fg-muted);transition:transform .3s;flex-shrink:0}
+.pillar-chevron.open{transform:rotate(180deg)}
+.pillar-body{max-height:0;overflow:hidden;transition:max-height .6s ease,opacity .3s;opacity:0}
+.pillar-body.open{max-height:4000px;opacity:1}
+.pillar-content{padding:0 24px 24px;border-top:1px solid var(--border);padding-top:20px}
+.pillar-desc{color:var(--fg-secondary);font-size:14px;line-height:1.7;margin-bottom:24px}
+
+/* CRITERIOS TABLE */
+.criterios-title{font-family:var(--font-display);font-weight:700;font-size:13px;color:var(--fg-muted);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px}
+.criterios-table{width:100%;border-collapse:collapse;margin-bottom:24px;font-size:13px}
+.criterios-table th{text-align:left;padding:8px 12px;font-size:11px;font-weight:600;color:var(--fg-muted);text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid var(--border)}
+.criterios-table td{padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.04);vertical-align:top;line-height:1.6}
+.criterios-table tr:last-child td{border-bottom:none}
+.criterios-table .col-crit{color:var(--fg);font-weight:500;min-width:160px}
+.criterios-table .col-status{min-width:90px;white-space:nowrap}
+.criterios-table .col-obs{color:var(--fg-secondary);min-width:200px}
+.criterios-table .col-impact{color:var(--fg-muted);font-size:12px;min-width:180px}
+.status-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:99px;font-size:11px;font-weight:600;white-space:nowrap}
+.status-ok{background:rgba(59,184,122,.1);color:var(--success);border:1px solid rgba(59,184,122,.2)}
+.status-critico{background:rgba(229,69,69,.1);color:var(--danger);border:1px solid rgba(229,69,69,.2)}
+.status-atencao{background:rgba(232,150,12,.1);color:var(--warning);border:1px solid rgba(232,150,12,.2)}
+@media(max-width:640px){.criterios-table .col-impact{display:none}.criterios-table th:last-child{display:none}}
+
+/* PILLAR RECOMMENDATION */
+.pillar-rec{background:rgba(218,165,32,.04);border:1px solid rgba(218,165,32,.15);border-radius:10px;padding:16px 20px;margin-top:8px;display:flex;gap:12px;align-items:flex-start}
+.pillar-rec-icon{width:28px;height:28px;border-radius:8px;background:rgba(218,165,32,.1);border:1px solid rgba(218,165,32,.2);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px}
+.pillar-rec-icon svg{width:14px;height:14px;fill:none;stroke:var(--gold);stroke-width:2}
+.pillar-rec-text{font-size:13px;color:var(--fg-secondary);line-height:1.7}
+.pillar-rec-label{font-size:10px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:4px}
+
+/* DECLARED VS REAL */
+.vs-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px}
+@media(max-width:640px){.vs-grid{grid-template-columns:1fr}}
+.vs-card{background:var(--bg-card);border-radius:var(--radius);padding:24px;border:1px solid var(--border)}
+.vs-card.highlight{border-color:var(--border-gold);box-shadow:var(--shadow-gold)}
+.vs-card .badge{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px;display:flex;align-items:center;gap:6px}
+.vs-card .badge svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2}
+.vs-card blockquote{font-family:var(--font-display);font-size:17px;font-weight:600;font-style:italic;line-height:1.5}
+.vs-card p{font-size:13px;color:var(--fg-secondary);line-height:1.7}
+.analysis-box{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:24px 32px;box-shadow:var(--shadow-card)}
+.analysis-box p{font-size:14px;color:var(--fg-secondary);line-height:1.7}
+
+/* CROSS ANALYSIS */
+.cross-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px}
+@media(max-width:640px){.cross-grid{grid-template-columns:1fr}}
+.cross-card{background:var(--bg-card);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow-card)}
+.cross-card h3{font-family:var(--font-display);font-weight:700;display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.cross-card h3 svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2}
+.cross-card p{font-size:13px;color:var(--fg-secondary);line-height:1.7}
+.incon-card{background:var(--bg-card);border:1px solid rgba(232,150,12,.15);border-radius:var(--radius);padding:24px 32px;box-shadow:var(--shadow-card);margin-bottom:24px}
+.incon-card h3{font-family:var(--font-display);font-weight:700;color:var(--warning);display:flex;align-items:center;gap:8px;margin-bottom:16px}
+.incon-card h3 svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2}
+.incon-card li{display:flex;align-items:flex-start;gap:10px;font-size:13px;color:var(--fg-secondary);padding:6px 0}
+.incon-card li .dot{width:6px;height:6px;border-radius:50%;background:var(--warning);margin-top:7px;flex-shrink:0}
+.quote-box{background:var(--bg-card);border:1px solid var(--border-gold);border-radius:var(--radius);padding:40px;box-shadow:var(--shadow-gold);text-align:center;position:relative}
+.quote-box::before{content:'';position:absolute;top:-2px;left:50%;transform:translateX(-50%);width:40px;height:3px;border-radius:4px;background:var(--gold)}
+.quote-box p{font-family:var(--font-display);font-size:clamp(1rem,2vw,1.2rem);font-weight:600;font-style:italic;line-height:1.6}
+
+/* ESTIMATIVA DE IMPACTO */
+.impacto-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px}
+@media(max-width:640px){.impacto-grid{grid-template-columns:1fr}}
+.impacto-card{background:var(--bg-card);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow-card)}
+.impacto-card.conservador{border:1px solid rgba(59,184,122,.2)}
+.impacto-card.otimista{border:1px solid rgba(218,165,32,.25);box-shadow:var(--shadow-gold)}
+.impacto-card .badge{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:14px;display:flex;align-items:center;gap:6px}
+.impacto-card .badge svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2}
+.impacto-card .valor{font-family:var(--font-display);font-size:clamp(1.2rem,2.5vw,1.6rem);font-weight:800;line-height:1.3;margin-bottom:8px}
+.impacto-card .detalhe{font-size:13px;color:var(--fg-secondary);line-height:1.7}
+.impacto-texto{background:var(--bg-card);border:1px solid var(--border-gold);border-radius:var(--radius);padding:28px 32px;box-shadow:var(--shadow-gold)}
+.impacto-texto p{font-size:14px;color:var(--fg-secondary);line-height:1.7}
+
+/* ACTION PLAN — 3 FASES */
+.fase-block{margin-bottom:32px}
+.fase-header{display:flex;align-items:center;gap:16px;margin-bottom:20px}
+.fase-badge{display:flex;align-items:center;justify-content:center;width:56px;height:56px;border-radius:50%;font-family:var(--font-display);font-size:13px;font-weight:800;flex-shrink:0}
+.fase-1 .fase-badge{background:linear-gradient(135deg,rgba(229,69,69,.3),rgba(229,69,69,.1));color:var(--danger);border:2px solid rgba(229,69,69,.4)}
+.fase-2 .fase-badge{background:linear-gradient(135deg,rgba(232,150,12,.3),rgba(232,150,12,.1));color:var(--warning);border:2px solid rgba(232,150,12,.4)}
+.fase-3 .fase-badge{background:linear-gradient(135deg,rgba(218,165,32,.3),rgba(218,165,32,.1));color:var(--gold);border:2px solid rgba(218,165,32,.4)}
+.fase-info h3{font-family:var(--font-display);font-size:clamp(1rem,2vw,1.2rem);font-weight:700;margin-bottom:2px}
+.fase-prazo{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1.5px;padding:2px 10px;border-radius:99px}
+.fase-1 .fase-prazo{color:var(--danger);background:rgba(229,69,69,.08);border:1px solid rgba(229,69,69,.2)}
+.fase-2 .fase-prazo{color:var(--warning);background:rgba(232,150,12,.08);border:1px solid rgba(232,150,12,.2)}
+.fase-3 .fase-prazo{color:var(--gold);background:rgba(218,165,32,.08);border:1px solid rgba(218,165,32,.2)}
+.fase-foco{font-size:12px;color:var(--fg-muted);margin-top:4px}
+.fase-acoes{padding-left:72px}
+@media(max-width:640px){.fase-acoes{padding-left:0}}
+.action-step{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:24px 28px;box-shadow:var(--shadow-card);margin-bottom:16px}
+.action-step h4{font-family:var(--font-display);font-size:clamp(.9rem,1.5vw,1rem);font-weight:700;margin-bottom:10px}
+.action-step .why,.action-step .impact{font-size:13px;color:var(--fg-secondary);line-height:1.7;margin-bottom:6px}
+.action-step .why strong,.action-step .impact strong{color:var(--fg);font-weight:600}
+.fase-divider{height:1px;background:linear-gradient(90deg,transparent,var(--border),transparent);margin:12px 0 32px}
+
+/* CTA */
+.cta-section{text-align:center;padding:64px 0 80px}
+.cta-section h2{font-size:clamp(1.3rem,3vw,1.8rem);font-weight:700;margin-bottom:20px}
+.cta-section p{color:var(--fg-secondary);font-size:14px;max-width:680px;margin:0 auto 40px;line-height:1.7}
+.cta-btn{display:inline-flex;align-items:center;gap:12px;padding:16px 36px;border-radius:99px;background:var(--gold-gradient);color:#0e1117;font-weight:600;font-size:15px;text-decoration:none;box-shadow:var(--shadow-gold);transition:transform .3s,box-shadow .3s}
+.cta-btn:hover{transform:scale(1.05);box-shadow:0 0 60px rgba(218,165,32,.25)}
+.cta-btn svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2}
+
+/* FOOTER */
+footer{border-top:1px solid var(--border);padding:32px 0;text-align:center}
+footer p{font-size:11px;color:var(--fg-muted)}
+footer span{color:var(--fg);font-weight:500}
+
+/* ANIMATIONS */
+@keyframes fadeUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+.fade-up{opacity:0;animation:fadeUp .6s ease-out forwards}
+</style>
+</head>
+<body>
+
+<!-- SVG DEFS -->
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#daa520"/>
+      <stop offset="100%" stop-color="#f5d060"/>
+    </linearGradient>
+  </defs>
+</svg>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="container-lg">
+    <div class="text-center">
+      <div style="margin-bottom:24px">
+        <div class="hero-icon"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+        <span class="hero-label">Diagnóstico High Digital</span>
+      </div>
+      <h1 id="heroName"></h1>
+      <p class="tagline" id="heroTagline"></p>
+      <div class="score-ring-wrap">
+        <div class="score-ring">
+          <svg viewBox="0 0 220 220">
+            <circle class="track" cx="110" cy="110" r="94"/>
+            <circle class="fill" cx="110" cy="110" r="94" id="scoreArc" stroke-dasharray="590.6" stroke-dashoffset="590.6"/>
+          </svg>
+          <div class="score-ring-inner">
+            <div class="score-ring-value" id="scoreNum">0</div>
+            <div class="score-ring-max">de 100</div>
+            <div class="score-ring-label" id="scoreNivel"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+<div class="divider"></div>
+
+<!-- EXECUTIVE SUMMARY -->
+<section class="section summary">
+  <div class="container">
+    <div class="text-center">
+      <span class="section-label">Resumo Executivo</span>
+      <h2 id="resumoTitulo"></h2>
+    </div>
+    <p class="text-center" id="resumoTexto" style="margin-top:24px"></p>
+  </div>
+</section>
+<div class="divider"></div>
+
+<!-- TOP 3 PROBLEMAS CRÍTICOS -->
+<section class="section" style="background:linear-gradient(145deg,#1a0a0a,#0e1117);border-top:1px solid rgba(229,69,69,.08);border-bottom:1px solid rgba(229,69,69,.08)">
+  <div class="container">
+    <div class="text-center" style="margin-bottom:40px">
+      <span class="section-label" style="color:var(--danger)">Atenção Urgente</span>
+      <h2 style="margin-top:12px">Top 3 Problemas Críticos</h2>
+      <p style="color:var(--fg-muted);font-size:13px;margin-top:12px;max-width:560px;margin-left:auto;margin-right:auto">O que está custando dinheiro agora — antes de qualquer outra melhoria</p>
+    </div>
+    <div class="top3-grid" id="top3Grid"></div>
+  </div>
+</section>
+<div class="divider"></div>
+
+<!-- RADAR + PILLARS OVERVIEW -->
+<section class="section">
+  <div class="container-lg">
+    <div class="text-center" style="margin-bottom:40px">
+      <span class="section-label">Visão Geral</span>
+      <h2 style="margin-top:12px">Seus 6 Pilares</h2>
+    </div>
+    <div class="radar-wrap">
+      <canvas id="radarChart" class="radar-canvas" width="420" height="420"></canvas>
+    </div>
+    <div class="score-bars" id="scoreBars"></div>
+  </div>
+</section>
+<div class="divider"></div>
+
+<!-- DETAILED ANALYSIS -->
+<section class="section">
+  <div class="container">
+    <div class="text-center" style="margin-bottom:40px">
+      <span class="section-label">Análise Detalhada</span>
+      <h2 style="margin-top:12px">Pilar por Pilar</h2>
+    </div>
+    <div id="pillarSections"></div>
+  </div>
+</section>
+<div class="divider"></div>
+
+<!-- DECLARED VS REAL -->
+<section class="section" style="background: linear-gradient(145deg, #1a202c, #0e1117); border-top: 1px solid rgba(255,255,255,0.05); border-bottom: 1px solid rgba(255,255,255,0.05); padding: 80px 0; margin-top: 40px; box-shadow: inset 0 0 40px rgba(0,0,0,0.5);">
+  <div class="container">
+    <div class="text-center" style="margin-bottom:40px">
+      <span class="section-label">Diagnóstico Profundo</span>
+      <h2 style="margin-top:12px">O que você declarou vs. o que os dados mostram</h2>
+    </div>
+    <div class="vs-grid">
+      <div class="vs-card">
+        <div class="badge" style="color:var(--info)"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Desafio declarado por você</div>
+        <blockquote id="desafioDeclarado"></blockquote>
+      </div>
+      <div class="vs-card highlight">
+        <div class="badge" style="color:var(--gold)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Problema real identificado</div>
+        <p id="problemaReal"></p>
+      </div>
+    </div>
+    <div class="analysis-box">
+      <p id="explicacaoAnalise"></p>
+    </div>
+  </div>
+</section>
+<div class="divider"></div>
+
+<!-- CROSS ANALYSIS -->
+<section class="section">
+  <div class="container">
+    <div class="text-center" style="margin-bottom:40px">
+      <span class="section-label">Análise Cruzada</span>
+    </div>
+    <div class="cross-grid">
+      <div class="cross-card" style="border:1px solid rgba(59,184,122,.2)">
+        <h3 style="color:var(--success)"><svg viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>Maior Oportunidade</h3>
+        <p id="maiorOportunidade"></p>
+      </div>
+      <div class="cross-card" style="border:1px solid rgba(229,69,69,.2)">
+        <h3 style="color:var(--danger)"><svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Maior Risco</h3>
+        <p id="maiorRisco"></p>
+      </div>
+    </div>
+    <div class="incon-card">
+      <h3><svg viewBox="0 0 24 24"><path d="M9 18h6M10 22h4M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>Inconsistências Identificadas</h3>
+      <ul id="inconList" style="list-style:none"></ul>
+    </div>
+    <div class="quote-box">
+      <p id="padraoIdentificado"></p>
+    </div>
+  </div>
+</section>
+<div class="divider"></div>
+
+<!-- ESTIMATIVA DE IMPACTO -->
+<section class="section" style="background:linear-gradient(145deg,#0e1a0e,#0e1117);border-top:1px solid rgba(59,184,122,.08);border-bottom:1px solid rgba(59,184,122,.08)">
+  <div class="container">
+    <div class="text-center" style="margin-bottom:40px">
+      <span class="section-label" style="color:var(--success)">Potencial de Crescimento</span>
+      <h2 style="margin-top:12px">Estimativa de Impacto Financeiro</h2>
+      <p style="color:var(--fg-muted);font-size:13px;margin-top:12px;max-width:560px;margin-left:auto;margin-right:auto" id="impactoContexto"></p>
+    </div>
+    <div class="impacto-grid">
+      <div class="impacto-card conservador">
+        <div class="badge" style="color:var(--success)"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Cenário Conservador</div>
+        <div class="valor" style="color:var(--success)" id="impactoConservador"></div>
+        <div class="detalhe" id="impactoConservadorDetalhe"></div>
+      </div>
+      <div class="impacto-card otimista">
+        <div class="badge" style="color:var(--gold)"><svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>Cenário Otimista</div>
+        <div class="valor" style="background:var(--gold-gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text" id="impactoOtimista"></div>
+        <div class="detalhe" id="impactoOtimistaDetalhe"></div>
+      </div>
+    </div>
+    <div class="impacto-texto">
+      <p id="impactoTexto"></p>
+    </div>
+  </div>
+</section>
+<div class="divider"></div>
+
+<!-- ACTION PLAN — 3 FASES -->
+<section class="section">
+  <div class="container">
+    <div class="text-center" style="margin-bottom:12px">
+      <span class="section-label">Plano de Ação</span>
+      <h2 id="planTitulo" style="margin-top:12px"></h2>
+    </div>
+    <p class="text-center" id="planContexto" style="color:var(--fg-secondary);font-size:14px;max-width:780px;margin:0 auto 48px;line-height:1.7"></p>
+    <div id="fasesWrap"></div>
+  </div>
+</section>
+<div class="divider"></div>
+
+<!-- CTA -->
+<section class="cta-section">
+  <div class="container">
+    <h2>Pronto para transformar este diagnóstico em resultados?</h2>
+    <p id="ctaTexto"></p>
+    <a href="#" class="cta-btn" id="ctaBtn">Agendar conversa com especialista <svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></a>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <p>Este diagnóstico é confidencial e foi gerado exclusivamente para <span id="footerEmpresa"></span>.</p>
+</footer>
+
+<script>/* DATA_PLACEHOLDER */</script>
+<script>
+var D = window.DIAGNOSTICO;
+
+// ===== HELPERS =====
+function scoreColor(s){
+  if(s>=80)return'#3bb87a';if(s>=60)return'#daa520';if(s>=40)return'#e8960c';return'#e54545';
+}
+function setText(id,val){var el=document.getElementById(id);if(el)el.textContent=val||'';}
+function setHTML(id,val){var el=document.getElementById(id);if(el)el.innerHTML=val||'';}
+
+// ===== PREENCHE HERO =====
+document.title = 'Diagnóstico High Digital — ' + D.empresa.nome;
+setText('heroName', D.empresa.nome);
+var tagline = D.empresa.nicho || '';
+if(D.empresa.responsavel) tagline += (tagline ? ' — ' : '') + D.empresa.responsavel;
+setText('heroTagline', tagline);
+setText('scoreNivel', D.resumo_executivo.nivel);
+
+// ===== PREENCHE RESUMO EXECUTIVO =====
+setText('resumoTitulo', D.resumo_executivo.titulo);
+setText('resumoTexto', D.resumo_executivo.texto);
+
+// ===== TOP 3 PROBLEMAS CRÍTICOS =====
+(function(){
+  var grid = document.getElementById('top3Grid');
+  if(!grid || !D.top3_problemas_criticos) return;
+  grid.innerHTML = D.top3_problemas_criticos.map(function(p, i){
+    return '<div class="top3-card">'
+      + '<div class="top3-num"><svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Problema Crítico '+(i+1)+'</div>'
+      + '<h3>'+p.titulo+'</h3>'
+      + '<p class="desc">'+p.descricao+'</p>'
+      + '<div class="top3-impacto">'+p.impacto_financeiro+'</div>'
+      + '<div class="top3-urgencia">⚡ '+p.urgencia+'</div>'
+      + '</div>';
+  }).join('');
+})();
+
+// ===== PREENCHE DECLARED VS REAL =====
+setText('desafioDeclarado', '\u201c' + D.diagnostico_vs_percepcao.desafio_declarado + '\u201d');
+setText('problemaReal', D.diagnostico_vs_percepcao.problema_real_identificado);
+setText('explicacaoAnalise', D.diagnostico_vs_percepcao.explicacao);
+
+// ===== PREENCHE ANÁLISE CRUZADA =====
+setText('maiorOportunidade', D.analise_cruzada.maior_oportunidade);
+setText('maiorRisco', D.analise_cruzada.maior_risco);
+var inconList = document.getElementById('inconList');
+if(inconList && D.analise_cruzada.inconsistencias){
+  inconList.innerHTML = D.analise_cruzada.inconsistencias.map(function(x){
+    return '<li><span class="dot"></span>'+x+'</li>';
+  }).join('');
+}
+setText('padraoIdentificado', '\u201c' + D.analise_cruzada.padrao_identificado + '\u201d');
+
+// ===== ESTIMATIVA DE IMPACTO =====
+(function(){
+  if(!D.estimativa_impacto) return;
+  var ei = D.estimativa_impacto;
+  setText('impactoContexto', ei.contexto);
+  // conservador: extract main number vs full text
+  var cons = ei.cenario_conservador || '';
+  var consParts = cons.match(/^([^\-–—.]+[\-–—]\s*[^\-–—.]+)/);
+  if(consParts){
+    setText('impactoConservador', consParts[1].trim());
+    setText('impactoConservadorDetalhe', cons.replace(consParts[1],'').replace(/^[\s\-–—]+/,''));
+  } else {
+    setText('impactoConservador', cons.substring(0,80));
+    setText('impactoConservadorDetalhe', cons.length>80 ? cons.substring(80) : '');
+  }
+  var otim = ei.cenario_otimista || '';
+  var otimParts = otim.match(/^([^\-–—.]+[\-–—]\s*[^\-–—.]+)/);
+  if(otimParts){
+    setText('impactoOtimista', otimParts[1].trim());
+    setText('impactoOtimistaDetalhe', otim.replace(otimParts[1],'').replace(/^[\s\-–—]+/,''));
+  } else {
+    setText('impactoOtimista', otim.substring(0,80));
+    setText('impactoOtimistaDetalhe', otim.length>80 ? otim.substring(80) : '');
+  }
+  setText('impactoTexto', ei.texto_completo);
+})();
+
+// ===== PREENCHE PLANO DE AÇÃO (3 FASES) =====
+setText('planTitulo', D.plano_de_acao.titulo || 'Plano de A\u00e7\u00e3o em 3 Fases');
+setText('planContexto', D.plano_de_acao.contexto);
+(function(){
+  var wrap = document.getElementById('fasesWrap');
+  if(!wrap) return;
+  var fases = D.plano_de_acao.fases || [];
+  // fallback: se ainda usar formato antigo com acoes[]
+  if(!fases.length && D.plano_de_acao.acoes){
+    wrap.innerHTML = D.plano_de_acao.acoes.map(function(a){
+      return '<div class="action-step">'
+        + '<h4>'+a.acao+'</h4>'
+        + '<p class="why"><strong>Por qu\u00ea agora:</strong> '+a.por_que_agora+'</p>'
+        + '<p class="impact"><strong>Impacto:</strong> '+a.impacto_esperado+'</p>'
+        + '</div>';
+    }).join('');
+    return;
+  }
+  var faseColors = ['fase-1','fase-2','fase-3'];
+  var faseNums = ['1','2','3'];
+  wrap.innerHTML = fases.map(function(f, fi){
+    var cls = faseColors[fi] || 'fase-1';
+    var acoes = (f.acoes||[]).map(function(a){
+      return '<div class="action-step">'
+        + '<h4>'+a.acao+'</h4>'
+        + '<p class="why"><strong>Por qu\u00ea agora:</strong> '+a.por_que_agora+'</p>'
+        + '<p class="impact"><strong>Impacto:</strong> '+a.impacto_esperado+'</p>'
+        + '</div>';
+    }).join('');
+    return '<div class="fase-block '+cls+'">'
+      + '<div class="fase-header">'
+      + '<div class="fase-badge">F'+(fi+1)+'</div>'
+      + '<div class="fase-info">'
+      + '<h3>Fase '+(fi+1)+' — '+f.nome+'</h3>'
+      + '<span class="fase-prazo">'+f.prazo+'</span>'
+      + (f.foco ? '<div class="fase-foco">'+f.foco+'</div>' : '')
+      + '</div></div>'
+      + '<div class="fase-acoes">'+acoes+'</div>'
+      + (fi < fases.length-1 ? '<div class="fase-divider"></div>' : '');
+  }).join('');
+})();
+
+// ===== PREENCHE CTA / PRÓXIMOS PASSOS =====
+setText('ctaTexto', D.proximos_passos.texto);
+var ctaBtn = document.getElementById('ctaBtn');
+if(ctaBtn && D.proximos_passos.cta){
+  ctaBtn.innerHTML = D.proximos_passos.cta
+    + ' <svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>';
+}
+
+// ===== PREENCHE FOOTER =====
+setText('footerEmpresa', D.empresa.nome);
+
+// ===== MONTA PILLARS A PARTIR DO JSON =====
+var PILLARS = D.pilares.map(function(p){
+  return {
+    label: p.nome,
+    score: p.score,
+    status: p.nivel,
+    description: p.diagnostico,
+    criterios: p.criterios || [],
+    recomendacao: p.recomendacao || ''
+  };
+});
+
+// ===== ANIMA SCORE RING =====
+(function(){
+  var arc=document.getElementById('scoreArc');
+  var num=document.getElementById('scoreNum');
+  var circ=2*Math.PI*94;
+  var target=D.resumo_executivo.score_geral;
+  var offset=circ-(target/100)*circ;
+  var start=null;
+  function step(ts){
+    if(!start)start=ts;
+    var p=Math.min((ts-start)/1500,1);
+    var e=1-Math.pow(1-p,3);
+    arc.style.strokeDashoffset=circ-e*(circ-offset);
+    num.textContent=Math.round(e*target);
+    if(p<1)requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+})();
+
+// ===== SCORE BARS =====
+(function(){
+  var el=document.getElementById('scoreBars');
+  el.innerHTML=PILLARS.map(function(p){
+    var c=scoreColor(p.score);
+    return '<div class="score-bar-card">'
+      +'<div class="score-bar-num" style="color:'+c+'">'+p.score+'</div>'
+      +'<div class="score-bar-info"><h4>'+p.label+'</h4>'
+      +'<div class="status">'+p.status+'</div>'
+      +'<div class="score-bar-track"><div class="score-bar-fill" style="width:0%;background:'+c+'" data-w="'+p.score+'%"></div></div>'
+      +'</div></div>';
+  }).join('');
+  setTimeout(function(){el.querySelectorAll('.score-bar-fill').forEach(function(b){b.style.width=b.dataset.w})},100);
+})();
+
+// ===== RADAR CHART =====
+(function(){
+  var canvas=document.getElementById('radarChart');
+  var ctx=canvas.getContext('2d');
+  var dpr=window.devicePixelRatio||1;
+  var size=420;
+  canvas.width=size*dpr;canvas.height=size*dpr;
+  canvas.style.width=size+'px';canvas.style.height=size+'px';
+  ctx.scale(dpr,dpr);
+  var cx=size/2,cy=size/2,R=size*.36,n=PILLARS.length;
+  var stepA=Math.PI*2/n,startA=-Math.PI/2;
+  var rings=[.2,.4,.6,.8,1];
+  var dur=1200;var t0=null;
+
+  function draw(now){
+    if(!t0)t0=now;
+    var p=Math.min((now-t0)/dur,1);
+    var e=1-Math.pow(1-p,3);
+    ctx.clearRect(0,0,size,size);
+    rings.forEach(function(r){
+      ctx.beginPath();
+      for(var i=0;i<=n;i++){var a=startA+i*stepA;ctx.lineTo(cx+Math.cos(a)*R*r,cy+Math.sin(a)*R*r)}
+      ctx.closePath();ctx.strokeStyle='rgba(255,255,255,'+(r===1?.15:.06)+')';ctx.lineWidth=r===1?1.5:1;ctx.stroke();
+    });
+    for(var i=0;i<n;i++){var a=startA+i*stepA;ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx+Math.cos(a)*R,cy+Math.sin(a)*R);ctx.strokeStyle='rgba(255,255,255,.08)';ctx.lineWidth=1;ctx.stroke();}
+    ctx.beginPath();
+    PILLARS.forEach(function(pl,i){var r=(pl.score/100)*e;var a=startA+i*stepA;var x=cx+Math.cos(a)*R*r,y=cy+Math.sin(a)*R*r;i===0?ctx.moveTo(x,y):ctx.lineTo(x,y)});
+    ctx.closePath();
+    var g=ctx.createRadialGradient(cx,cy,0,cx,cy,R);g.addColorStop(0,'rgba(218,165,32,.25)');g.addColorStop(1,'rgba(218,165,32,.05)');
+    ctx.fillStyle=g;ctx.fill();ctx.strokeStyle='rgba(218,165,32,.8)';ctx.lineWidth=2.5;ctx.stroke();
+    PILLARS.forEach(function(pl,i){var r=(pl.score/100)*e;var a=startA+i*stepA;var x=cx+Math.cos(a)*R*r,y=cy+Math.sin(a)*R*r;
+      ctx.beginPath();ctx.arc(x,y,8,0,Math.PI*2);ctx.fillStyle='rgba(218,165,32,.2)';ctx.fill();
+      ctx.beginPath();ctx.arc(x,y,4,0,Math.PI*2);ctx.fillStyle='#daa520';ctx.fill();ctx.strokeStyle='rgba(255,255,255,.6)';ctx.lineWidth=1.5;ctx.stroke();
+    });
+    PILLARS.forEach(function(pl,i){var a=startA+i*stepA;var lr=R+32;var x=cx+Math.cos(a)*lr,y=cy+Math.sin(a)*lr;
+      ctx.font='600 11px Inter,system-ui,sans-serif';ctx.fillStyle='rgba(255,255,255,.75)';ctx.textAlign='center';ctx.textBaseline='middle';
+      var w=pl.label.split(' ');
+      if(w.length>2){var m=Math.ceil(w.length/2);ctx.fillText(w.slice(0,m).join(' '),x,y-7);ctx.fillText(w.slice(m).join(' '),x,y+7)}
+      else ctx.fillText(pl.label,x,y);
+      ctx.font='700 13px Inter,system-ui,sans-serif';ctx.fillStyle='#daa520';
+      ctx.fillText(Math.round(pl.score*e),x,w.length>2?y+22:y+16);
+    });
+    if(p<1)requestAnimationFrame(draw);
+  }
+  requestAnimationFrame(draw);
+})();
+
+// ===== PILLAR SECTIONS =====
+(function(){
+  var wrap=document.getElementById('pillarSections');
+  var svgChev='<svg viewBox="0 0 24 24" class="pillar-chevron"><polyline points="6 9 12 15 18 9"/></svg>';
+  var svgRec='<svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>';
+
+  function statusBadge(emoji, label){
+    var cls = label==='OK' ? 'status-ok' : label==='Crítico' ? 'status-critico' : 'status-atencao';
+    return '<span class="status-badge '+cls+'">'+emoji+' '+label+'</span>';
+  }
+
+  function criteriosTable(criterios){
+    if(!criterios || !criterios.length) return '';
+    return '<div class="criterios-title">Avaliação dos critérios</div>'
+      +'<table class="criterios-table">'
+      +'<thead><tr><th>Critério</th><th>Status</th><th>Observação</th><th>Impacto</th></tr></thead>'
+      +'<tbody>'
+      +criterios.map(function(c){
+        return '<tr>'
+          +'<td class="col-crit">'+c.criterio+'</td>'
+          +'<td class="col-status">'+statusBadge(c.status, c.status_label)+'</td>'
+          +'<td class="col-obs">'+c.observacao+'</td>'
+          +'<td class="col-impact">'+c.impacto+'</td>'
+          +'</tr>';
+      }).join('')
+      +'</tbody></table>';
+  }
+
+  function recomendacaoBox(texto){
+    if(!texto) return '';
+    return '<div class="pillar-rec">'
+      +'<div class="pillar-rec-icon">'+svgRec+'</div>'
+      +'<div><div class="pillar-rec-label">Recomendação principal</div>'
+      +'<div class="pillar-rec-text">'+texto+'</div></div>'
+      +'</div>';
+  }
+
+  wrap.innerHTML=PILLARS.map(function(p,idx){
+    var c=scoreColor(p.score);
+    return '<div class="pillar" id="pillar'+idx+'">'
+      +'<div class="pillar-header" onclick="togglePillar('+idx+')">'
+      +'<div class="pillar-score" style="border-color:'+c+'"><span style="color:'+c+'">'+p.score+'</span></div>'
+      +'<div class="pillar-meta"><h3>'+p.label+'</h3><div class="status">'+p.status+'</div></div>'
+      +svgChev+'</div>'
+      +'<div class="pillar-body" id="pillarBody'+idx+'">'
+      +'<div class="pillar-content">'
+      +'<p class="pillar-desc">'+p.description+'</p>'
+      +criteriosTable(p.criterios)
+      +recomendacaoBox(p.recomendacao)
+      +'</div></div></div>';
+  }).join('');
+})();
+
+function togglePillar(idx){
+  var body=document.getElementById('pillarBody'+idx);
+  var chev=document.querySelector('#pillar'+idx+' .pillar-chevron');
+  body.classList.toggle('open');
+  chev.classList.toggle('open');
+}
+</script>
+</body>
+</html>
