@@ -51,7 +51,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     }
 
     await pool.query(
-      'UPDATE leads SET stage = $1, stage_date = NOW() WHERE id = $2',
+      'UPDATE leads SET stage = $1 WHERE id = $2',
       [stage, id]
     )
     return NextResponse.json({ ok: true })
