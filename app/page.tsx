@@ -52,13 +52,16 @@ type Lead = {
 }
 
 const STAGES: { value: string; label: string; color: string; bg: string; border: string }[] = [
-  { value: 'nao_iniciado',     label: 'Não iniciado',      color: 'text-gray-400',   bg: 'bg-gray-800/60',       border: 'border-gray-700' },
-  { value: 'primeiro_contato', label: 'Primeiro contato',  color: 'text-blue-400',   bg: 'bg-blue-900/30',       border: 'border-blue-800' },
-  { value: 'follow_up',        label: 'Follow-up',         color: 'text-yellow-400', bg: 'bg-yellow-900/30',     border: 'border-yellow-800' },
-  { value: 'reuniao_agendada', label: 'Reunião agendada',  color: 'text-purple-400', bg: 'bg-purple-900/30',     border: 'border-purple-800' },
-  { value: 'no_show',          label: 'No-show',           color: 'text-orange-400', bg: 'bg-orange-900/30',     border: 'border-orange-800' },
-  { value: 'ganho',            label: 'Ganho',             color: 'text-green-400',  bg: 'bg-green-900/30',      border: 'border-green-800' },
-  { value: 'perdido',          label: 'Perdido',           color: 'text-red-400',    bg: 'bg-red-900/30',        border: 'border-red-800' },
+  { value: 'nao_iniciado',       label: 'Não iniciado',       color: 'text-gray-400',   bg: 'bg-gray-800/60',     border: 'border-gray-700' },
+  { value: 'tentando_contato',   label: 'Tentando contato',   color: 'text-cyan-400',   bg: 'bg-cyan-900/30',     border: 'border-cyan-800' },
+  { value: 'primeiro_contato',   label: 'Primeiro contato',   color: 'text-blue-400',   bg: 'bg-blue-900/30',     border: 'border-blue-800' },
+  { value: 'follow_up',          label: 'Follow-up',          color: 'text-yellow-400', bg: 'bg-yellow-900/30',   border: 'border-yellow-800' },
+  { value: 'reuniao_agendada',   label: 'Reunião agendada',   color: 'text-purple-400', bg: 'bg-purple-900/30',   border: 'border-purple-800' },
+  { value: 'no_show',            label: 'No-show',            color: 'text-orange-400', bg: 'bg-orange-900/30',   border: 'border-orange-800' },
+  { value: 'diagnostico_enviado',label: 'Diagnóstico enviado',color: 'text-violet-400', bg: 'bg-violet-900/30',   border: 'border-violet-800' },
+  { value: 'em_negociacao',      label: 'Em negociação',      color: 'text-pink-400',   bg: 'bg-pink-900/30',     border: 'border-pink-800' },
+  { value: 'ganho',              label: 'Ganho',              color: 'text-green-400',  bg: 'bg-green-900/30',    border: 'border-green-800' },
+  { value: 'perdido',            label: 'Perdido',            color: 'text-red-400',    bg: 'bg-red-900/30',      border: 'border-red-800' },
 ]
 
 function formatPhone(phone: string | null): string | null {
@@ -201,16 +204,41 @@ function DiagnosticoPanel({ lead, onDiagnosticoFound }: { lead: Lead; onDiagnost
   }
 
   // sem_diagnostico
+  const [gerando, setGerando] = useState(false)
+  const [erroGerar, setErroGerar] = useState<string | null>(null)
+
+  const handleGerar = async () => {
+    setGerando(true)
+    setErroGerar(null)
+    try {
+      const res = await fetch('/api/diagnostics/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lead_id: lead.id }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Erro desconhecido')
+      setDiag({ status: 'processando' })
+    } catch (e: unknown) {
+      setErroGerar(e instanceof Error ? e.message : 'Erro ao iniciar geração')
+      setGerando(false)
+    }
+  }
+
   return (
-    <div className="mt-4">
+    <div className="mt-4 flex flex-col gap-2">
       <button
-        disabled
-        title="Disponível em breve"
-        className="inline-flex items-center gap-2 px-4 py-2 bg-gray-800 border border-gray-700 text-gray-500 text-sm rounded-lg cursor-not-allowed"
+        onClick={handleGerar}
+        disabled={gerando}
+        className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-700 hover:bg-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm rounded-lg transition-colors"
       >
-        Gerar diagnóstico
-        <span className="text-xs text-gray-600">(em breve)</span>
+        {gerando ? (
+          <><span className="animate-spin">⟳</span> Iniciando...</>
+        ) : (
+          'Gerar diagnóstico'
+        )}
       </button>
+      {erroGerar && <p className="text-red-400 text-xs">{erroGerar}</p>}
     </div>
   )
 }
