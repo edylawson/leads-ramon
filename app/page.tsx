@@ -571,10 +571,8 @@ export default function Page() {
                 <tr className="border-b border-gray-800 text-xs text-gray-500 uppercase tracking-wider">
                   <th className="text-left px-4 py-3 hidden sm:table-cell">Data</th>
                   <th className="text-left px-4 py-3">Nome</th>
-                  <th className="text-left px-4 py-3 hidden md:table-cell">Empresa</th>
                   <th className="text-left px-4 py-3 hidden lg:table-cell">Segmento</th>
                   <th className="text-left px-4 py-3 hidden lg:table-cell">Faturamento</th>
-                  <th className="text-left px-4 py-3 hidden md:table-cell">WhatsApp</th>
                   <th className="text-left px-4 py-3 hidden md:table-cell">Estágio</th>
                   <th className="text-left px-4 py-3 hidden md:table-cell">Responsável</th>
                   <th className="text-left px-4 py-3">Status</th>
@@ -592,26 +590,26 @@ export default function Page() {
                     >
                       <td className="px-4 py-3 text-gray-400 hidden sm:table-cell whitespace-nowrap">{formatDate(lead.submit_date || lead.stage_date)}</td>
                       <td className="px-4 py-3">
-                        <p className="text-gray-100 font-medium">{name}</p>
-                        <CopyEmail email={lead.email} />
-                      </td>
-                      <td className="px-4 py-3 text-gray-300 hidden md:table-cell">{lead.empresa || '—'}</td>
-                      <td className="px-4 py-3 text-gray-400 hidden lg:table-cell">{lead.tipo_negocio || '—'}</td>
-                      <td className="px-4 py-3 text-gray-400 hidden lg:table-cell">{lead.faturamento_anual || '—'}</td>
-                      <td className="px-4 py-3 hidden md:table-cell" onClick={e => e.stopPropagation()}>
-                        {formatPhone(lead.phone)
-                          ? <a
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-gray-100 font-medium">{name}</p>
+                          {formatPhone(lead.phone) && (
+                            <a
                               href={`https://wa.me/${formatPhone(lead.phone)}`}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs bg-green-900/30 text-green-400 border border-green-800 hover:bg-green-800/50 transition-colors whitespace-nowrap"
+                              onClick={e => e.stopPropagation()}
+                              title={`WhatsApp: ${lead.phone}`}
+                              className="text-green-500 hover:text-green-400 transition-colors shrink-0"
                             >
-                              <svg className="w-3 h-3 shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.126 1.533 5.857L.057 23.857a.5.5 0 0 0 .612.612l6.004-1.476A11.933 11.933 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.907 0-3.7-.528-5.228-1.449l-.374-.222-3.875.952.97-3.773-.244-.389A9.956 9.956 0 0 1 2 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
-                              {lead.phone}
+                              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.126 1.533 5.857L.057 23.857a.5.5 0 0 0 .612.612l6.004-1.476A11.933 11.933 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.907 0-3.7-.528-5.228-1.449l-.374-.222-3.875.952.97-3.773-.244-.389A9.956 9.956 0 0 1 2 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
                             </a>
-                          : <span className="text-gray-600 text-xs">—</span>
-                        }
+                          )}
+                        </div>
+                        {lead.empresa && <p className="text-gray-500 text-xs mt-0.5">{lead.empresa}</p>}
+                        <CopyEmail email={lead.email} />
                       </td>
+                      <td className="px-4 py-3 text-gray-400 hidden lg:table-cell">{lead.tipo_negocio || '—'}</td>
+                      <td className="px-4 py-3 text-gray-400 hidden lg:table-cell">{lead.faturamento_anual || '—'}</td>
                       <td className="px-4 py-3 hidden md:table-cell" onClick={e => e.stopPropagation()}>
                         {(() => {
                           const s = STAGES.find(s => s.value === (lead.stage || 'nao_iniciado')) ?? STAGES[0]

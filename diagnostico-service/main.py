@@ -32,6 +32,45 @@ TEMPLATE_HTML = (SERVICE_DIR / 'template.html').read_text(encoding='utf-8')
 
 app = FastAPI(title='Diagnóstico Service', version='1.0.0')
 
+
+@app.on_event('startup')
+def startup():
+    """Garante que a tabela diagnosticos existe com todas as colunas necessárias."""
+    try:
+        conn = get_conn()
+        cur = conn.cursor()
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS diagnosticos (
+                id           SERIAL PRIMARY KEY,
+                lead_id      INTEGER REFERENCES leads(id),
+                status       TEXT DEFAULT 'processando',
+                versao       INTEGER DEFAULT 1,
+                url          TEXT DEFAULT '',
+                html_content TEXT,
+                json_output  TEXT,
+                error_message TEXT,
+                gerado_em    TIMESTAMPTZ,
+                criado_em    TIMESTAMPTZ DEFAULT NOW()
+            )
+        """)
+        # Adiciona colunas que podem estar faltando em tabelas já existentes
+        for col, definition in [
+            ('html_content', 'TEXT'),
+            ('json_output',  'TEXT'),
+            ('error_message','TEXT'),
+            ('url',          "TEXT DEFAULT ''"),
+        ]:
+            cur.execute(f"""
+                ALTER TABLE diagnosticos ADD COLUMN IF NOT EXISTS {col} {definition}
+            """)
+        conn.commit()
+        cur.close()
+        conn.close()
+        log.info('Tabela diagnosticos verificada/criada com sucesso')
+    except Exception as e:
+        log.error(f'Erro no startup ao verificar tabela: {e}')
+
+
 # ─── Helpers de banco ────────────────────────────────────────
 
 def get_conn():
@@ -60,10 +99,16 @@ def criar_diagnostico_processando(lead_id: int) -> int:
         cur.execute(
             """
             INSERT INTO diagnosticos (lead_id, status, versao, url, gerado_em)
-            VALUES (%s, 'processando', 3, '', NOW())
+            VALUES (
+                %s,
+                'processando',
+                COALESCE((SELECT MAX(versao) FROM diagnosticos WHERE lead_id = %s), 0) + 1,
+                '',
+                NOW()
+            )
             RETURNING id
             """,
-            (lead_id,)
+            (lead_id, lead_id)
         )
         diag_id = cur.fetchone()[0]
         conn.commit()
