@@ -344,27 +344,68 @@ def coletar_dados_externos(formulario: dict) -> dict:
 
 # ─── Análise Claude ──────────────────────────────────────────
 
+def extrair_json(raw: str) -> dict:
+    """Faz parse do JSON, tolerando resposta truncada pelo limite de tokens."""
+    raw = raw.strip()
+    # Remove markdown code blocks
+    if raw.startswith('```'):
+        raw = raw.split('\n', 1)[1]
+        raw = raw.rsplit('```', 1)[0].strip()
+    # Tenta parse direto
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        pass
+    # Resposta truncada: encontra o último } que fecha o objeto raiz
+    depth = 0
+    in_string = False
+    escape_next = False
+    last_close = -1
+    for i, ch in enumerate(raw):
+        if escape_next:
+            escape_next = False
+            continue
+        if ch == '\\' and in_string:
+            escape_next = True
+            continue
+        if ch == '"':
+            in_string = not in_string
+            continue
+        if not in_string:
+            if ch == '{':
+                depth += 1
+            elif ch == '}':
+                depth -= 1
+                if depth == 0:
+                    last_close = i
+    if last_close > 0:
+        try:
+            return json.loads(raw[:last_close + 1])
+        except json.JSONDecodeError:
+            pass
+    raise ValueError('Não foi possível extrair JSON válido da resposta do Claude')
+
+
 def analisar_com_claude(dados: dict) -> dict:
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
     dados_str = json.dumps(dados, ensure_ascii=False, indent=2)
 
     message = client.messages.create(
-        model='claude-opus-4-5',
+        model='claude-haiku-3-5',
         max_tokens=8000,
         system=SYSTEM_PROMPT,
         messages=[{
             'role': 'user',
-            'content': f'Gere o diagnóstico completo para os seguintes dados:\n\n{dados_str}\n\nRetorne APENAS o JSON do diagnóstico, sem texto adicional.'
+            'content': (
+                f'Gere o diagnóstico completo para os seguintes dados:\n\n{dados_str}\n\n'
+                'Retorne APENAS o JSON do diagnóstico, sem texto adicional. '
+                'Mantenha os textos concisos para caber no limite de tokens.'
+            )
         }]
     )
 
-    raw = message.content[0].text.strip()
-    # Remove markdown code blocks se presentes
-    if raw.startswith('```'):
-        raw = raw.split('\n', 1)[1]
-        raw = raw.rsplit('```', 1)[0]
-
-    return json.loads(raw)
+    raw = message.content[0].text
+    return extrair_json(raw)
 
 
 # ─── Renderização HTML ───────────────────────────────────────
