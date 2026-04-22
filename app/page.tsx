@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 
 type Responsavel = {
   id: number
@@ -422,6 +422,9 @@ export default function Page() {
   const [dateTo, setDateTo] = useState('')
   const [loading, setLoading] = useState(true)
   const [responsaveis, setResponsaveis] = useState<Responsavel[]>([])
+  const [stageFilter, setStageFilter] = useState<string>('')
+  const [stageDropdownOpen, setStageDropdownOpen] = useState(false)
+  const stageDropdownRef = useRef<HTMLTableCellElement>(null)
 
   useEffect(() => {
     fetch('/api/leads')
@@ -434,9 +437,21 @@ export default function Page() {
       .catch(() => {})
   }, [])
 
+  // Fecha dropdown ao clicar fora
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (stageDropdownRef.current && !stageDropdownRef.current.contains(e.target as Node)) {
+        setStageDropdownOpen(false)
+      }
+    }
+    if (stageDropdownOpen) document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [stageDropdownOpen])
+
   useEffect(() => {
     let result = leads
     if (filter !== 'all') result = result.filter(l => l.response_type === filter)
+    if (stageFilter) result = result.filter(l => (l.stage || 'nao_iniciado') === stageFilter)
     if (search.trim()) {
       const q = search.toLowerCase()
       result = result.filter(l =>
@@ -456,7 +471,7 @@ export default function Page() {
       })
     }
     setFiltered(result)
-  }, [leads, search, filter, dateFrom, dateTo])
+  }, [leads, search, filter, stageFilter, dateFrom, dateTo])
 
   const completed = leads.filter(l => l.response_type === 'completed').length
   const partial = leads.filter(l => l.response_type === 'partial').length
@@ -573,7 +588,42 @@ export default function Page() {
                   <th className="text-left px-4 py-3">Nome</th>
                   <th className="text-left px-4 py-3 hidden lg:table-cell">Segmento</th>
                   <th className="text-left px-4 py-3 hidden lg:table-cell">Faturamento</th>
-                  <th className="text-left px-4 py-3 hidden md:table-cell">Estágio</th>
+                  <th ref={stageDropdownRef} className="text-left px-4 py-3 hidden md:table-cell relative">
+                    <button
+                      onClick={() => setStageDropdownOpen(prev => !prev)}
+                      className={`flex items-center gap-1.5 uppercase tracking-wider hover:text-white transition-colors ${stageFilter ? 'text-indigo-400' : ''}`}
+                    >
+                      Estágio
+                      {stageFilter && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 inline-block shrink-0" />
+                      )}
+                      <svg className={`w-3 h-3 opacity-60 transition-transform ${stageDropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                    {stageDropdownOpen && (
+                      <div className="absolute top-full left-0 z-30 mt-1 bg-gray-900 border border-gray-700 rounded-lg shadow-xl py-1 min-w-[190px]">
+                        <button
+                          onClick={() => { setStageFilter(''); setStageDropdownOpen(false) }}
+                          className={`w-full text-left px-3 py-1.5 text-xs normal-case tracking-normal hover:bg-gray-800 transition-colors flex items-center gap-2 ${!stageFilter ? 'text-indigo-400 font-semibold' : 'text-gray-400'}`}
+                        >
+                          {!stageFilter && <span className="text-indigo-400">✓</span>}
+                          Todos os estágios
+                        </button>
+                        <div className="border-t border-gray-800 my-1" />
+                        {STAGES.map(st => (
+                          <button
+                            key={st.value}
+                            onClick={() => { setStageFilter(st.value); setStageDropdownOpen(false) }}
+                            className={`w-full text-left px-3 py-1.5 text-xs normal-case tracking-normal hover:bg-gray-800 transition-colors flex items-center gap-2 ${st.color} ${stageFilter === st.value ? 'font-semibold' : 'opacity-80'}`}
+                          >
+                            {stageFilter === st.value && <span>✓</span>}
+                            {st.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </th>
                   <th className="text-left px-4 py-3 hidden md:table-cell">Responsável</th>
                   <th className="text-left px-4 py-3">Status</th>
                   <th className="text-left px-4 py-3 hidden md:table-cell">Diagnóstico</th>
