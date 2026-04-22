@@ -578,8 +578,6 @@ export default function Page() {
         <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
           {loading ? (
             <div className="py-20 text-center text-gray-500">Carregando...</div>
-          ) : filtered.length === 0 ? (
-            <div className="py-20 text-center text-gray-500">Nenhum lead encontrado.</div>
           ) : (
             <table className="w-full text-sm">
               <thead>
@@ -630,6 +628,11 @@ export default function Page() {
                 </tr>
               </thead>
               <tbody>
+                {filtered.length === 0 && (
+                  <tr>
+                    <td colSpan={8} className="py-20 text-center text-gray-500">Nenhum lead encontrado.</td>
+                  </tr>
+                )}
                 {filtered.map((lead, i) => {
                   const name = [lead.first_name, lead.last_name].filter(Boolean).join(' ') || '—'
                   return (

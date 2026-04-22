@@ -39,6 +39,15 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   }
 }
 
+// Estágios que preenchem timestamps de marco (apenas na primeira vez)
+const STAGE_MILESTONE: Record<string, string> = {
+  primeiro_contato:    'primeiro_contato_em',
+  reuniao_agendada:    'reuniao_em',
+  diagnostico_enviado: 'diagnostico_enviado_em',
+  ganho:               'fechado_em',
+  perdido:             'fechado_em',
+}
+
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const { id } = params
 
@@ -51,7 +60,32 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       if (!VALID_STAGES.includes(stage)) {
         return NextResponse.json({ error: 'Estágio inválido' }, { status: 400 })
       }
-      await pool.query('UPDATE leads SET stage = $1 WHERE id = $2', [stage, id])
+
+      // Busca estágio atual antes de mudar
+      const current = await pool.query('SELECT stage, responsavel_id FROM leads WHERE id = $1', [id])
+      const estagioAnterior = current.rows[0]?.stage ?? null
+      const respId = current.rows[0]?.responsavel_id ?? null
+
+      // Só age se o estágio realmente mudou
+      if (estagioAnterior !== stage) {
+        // Monta UPDATE com stage_date e possível campo de marco
+        const milestoneCol = STAGE_MILESTONE[stage]
+        const milestoneUpdate = milestoneCol
+          ? `, ${milestoneCol} = COALESCE(${milestoneCol}, NOW())`
+          : ''
+
+        await pool.query(
+          `UPDATE leads SET stage = $1, stage_date = NOW()${milestoneUpdate} WHERE id = $2`,
+          [stage, id]
+        )
+
+        // Registra no histórico
+        await pool.query(
+          `INSERT INTO leads_historico_estagios (lead_id, estagio_de, estagio_para, responsavel_id)
+           VALUES ($1, $2, $3, $4)`,
+          [id, estagioAnterior, stage, respId]
+        )
+      }
     }
 
     // Atualiza responsável (aceita null para remover)
