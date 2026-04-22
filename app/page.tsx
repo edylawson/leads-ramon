@@ -453,6 +453,9 @@ export default function Page() {
   const [stageFilter, setStageFilter] = useState<string>('')
   const [stageDropdownOpen, setStageDropdownOpen] = useState(false)
   const stageDropdownRef = useRef<HTMLTableCellElement>(null)
+  const [perfilFilter, setPerfilFilter] = useState<string>('')
+  const [perfilDropdownOpen, setPerfilDropdownOpen] = useState(false)
+  const perfilDropdownRef = useRef<HTMLTableCellElement>(null)
 
   useEffect(() => {
     fetch('/api/leads')
@@ -465,7 +468,7 @@ export default function Page() {
       .catch(() => {})
   }, [])
 
-  // Fecha dropdown ao clicar fora
+  // Fecha dropdowns ao clicar fora
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (stageDropdownRef.current && !stageDropdownRef.current.contains(e.target as Node)) {
@@ -477,9 +480,20 @@ export default function Page() {
   }, [stageDropdownOpen])
 
   useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (perfilDropdownRef.current && !perfilDropdownRef.current.contains(e.target as Node)) {
+        setPerfilDropdownOpen(false)
+      }
+    }
+    if (perfilDropdownOpen) document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [perfilDropdownOpen])
+
+  useEffect(() => {
     let result = leads
     if (filter !== 'all') result = result.filter(l => l.response_type === filter)
     if (stageFilter) result = result.filter(l => (l.stage || 'nao_iniciado') === stageFilter)
+    if (perfilFilter) result = result.filter(l => l.perfil === perfilFilter)
     if (search.trim()) {
       const q = search.toLowerCase()
       result = result.filter(l =>
@@ -499,7 +513,7 @@ export default function Page() {
       })
     }
     setFiltered(result)
-  }, [leads, search, filter, stageFilter, dateFrom, dateTo])
+  }, [leads, search, filter, stageFilter, perfilFilter, dateFrom, dateTo])
 
   const completed = leads.filter(l => l.response_type === 'completed').length
   const partial = leads.filter(l => l.response_type === 'partial').length
@@ -612,6 +626,47 @@ export default function Page() {
                 <tr className="border-b border-gray-800 text-xs text-gray-500 uppercase tracking-wider">
                   <th className="text-left px-4 py-3 hidden sm:table-cell">Data</th>
                   <th className="text-left px-4 py-3">Nome</th>
+                  <th ref={perfilDropdownRef} className="text-left px-4 py-3 hidden md:table-cell relative">
+                    <button
+                      onClick={() => setPerfilDropdownOpen(prev => !prev)}
+                      className={`flex items-center gap-1.5 uppercase tracking-wider hover:text-white transition-colors ${perfilFilter ? 'text-indigo-400' : ''}`}
+                    >
+                      Perfil
+                      {perfilFilter && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 inline-block shrink-0" />
+                      )}
+                      <svg className={`w-3 h-3 opacity-60 transition-transform ${perfilDropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                    {perfilDropdownOpen && (
+                      <div className="absolute top-full left-0 z-30 mt-1 bg-gray-900 border border-gray-700 rounded-lg shadow-xl py-1 min-w-[220px]">
+                        <button
+                          onClick={() => { setPerfilFilter(''); setPerfilDropdownOpen(false) }}
+                          className={`w-full text-left px-3 py-1.5 text-xs normal-case tracking-normal hover:bg-gray-800 transition-colors flex items-center gap-2 ${!perfilFilter ? 'text-indigo-400 font-semibold' : 'text-gray-400'}`}
+                        >
+                          {!perfilFilter && <span className="text-indigo-400">✓</span>}
+                          Todos os perfis
+                        </button>
+                        <div className="border-t border-gray-800 my-1" />
+                        {[
+                          { value: 'A+ (High Ticket - Livro/Método)',     label: 'A+ — High Ticket',    cls: 'text-violet-300' },
+                          { value: 'A (Premium - Agência ou Ascensão)',   label: 'A — Premium',          cls: 'text-blue-300'   },
+                          { value: 'B (Core Agência - Ticket R$ 3.500)', label: 'B — Core Agência',     cls: 'text-amber-300'  },
+                          { value: 'C (Baixo Budget - Nutrição)',         label: 'C — Baixo Budget',     cls: 'text-gray-400'   },
+                        ].map(p => (
+                          <button
+                            key={p.value}
+                            onClick={() => { setPerfilFilter(p.value); setPerfilDropdownOpen(false) }}
+                            className={`w-full text-left px-3 py-1.5 text-xs normal-case tracking-normal hover:bg-gray-800 transition-colors flex items-center gap-2 ${p.cls} ${perfilFilter === p.value ? 'font-semibold' : 'opacity-80'}`}
+                          >
+                            {perfilFilter === p.value && <span>✓</span>}
+                            {p.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </th>
                   <th className="text-left px-4 py-3 hidden lg:table-cell">Segmento</th>
                   <th className="text-left px-4 py-3 hidden lg:table-cell">Faturamento</th>
                   <th ref={stageDropdownRef} className="text-left px-4 py-3 hidden md:table-cell relative">
@@ -658,7 +713,7 @@ export default function Page() {
               <tbody>
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="py-20 text-center text-gray-500">Nenhum lead encontrado.</td>
+                    <td colSpan={9} className="py-20 text-center text-gray-500">Nenhum lead encontrado.</td>
                   </tr>
                 )}
                 {filtered.map((lead, i) => {
@@ -686,13 +741,11 @@ export default function Page() {
                             </a>
                           )}
                         </div>
-                        {(lead.empresa || lead.perfil) && (
-                          <div className="flex items-center gap-1.5 mt-0.5">
-                            {lead.empresa && <p className="text-gray-500 text-xs">{lead.empresa}</p>}
-                            <PerfilBadge perfil={lead.perfil} />
-                          </div>
-                        )}
+                        {lead.empresa && <p className="text-gray-500 text-xs mt-0.5">{lead.empresa}</p>}
                         <CopyEmail email={lead.email} />
+                      </td>
+                      <td className="px-4 py-3 hidden md:table-cell">
+                        <PerfilBadge perfil={lead.perfil} size="sm" />
                       </td>
                       <td className="px-4 py-3 text-gray-400 hidden lg:table-cell">{lead.tipo_negocio || '—'}</td>
                       <td className="px-4 py-3 text-gray-400 hidden lg:table-cell">{lead.faturamento_anual || '—'}</td>
