@@ -60,7 +60,8 @@ export async function GET() {
         l.stage_date,
         l.created_at,
         l.responsavel_id,
-        r.nome AS responsavel_nome
+        r.nome AS responsavel_nome,
+        l.perfil
       FROM leads l
       LEFT JOIN responsaveis r ON r.id = l.responsavel_id
       ORDER BY COALESCE(l.submit_date, l.stage_date) DESC NULLS LAST

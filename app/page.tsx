@@ -52,6 +52,7 @@ type Lead = {
   intencao_talvez: boolean
   intencao_nao_momento: boolean
   diagnostico_url: string | null
+  perfil: string | null
   stage: string
   submit_date: string | null
   stage_date: string | null
@@ -128,6 +129,27 @@ function urgencyColor(urgencia: string | null) {
   if (urgencia.toLowerCase().includes('alta')) return 'text-orange-400'
   if (urgencia.toLowerCase().includes('planejando')) return 'text-yellow-400'
   return 'text-gray-400'
+}
+
+function PerfilBadge({ perfil, size = 'sm' }: { perfil: string | null; size?: 'sm' | 'md' }) {
+  if (!perfil) return null
+  // Extrai só o código (A+, A, B, C) para exibição compacta
+  const code = perfil.startsWith('A+') ? 'A+' : perfil.startsWith('A') ? 'A' : perfil.startsWith('B') ? 'B' : 'C'
+  const styles: Record<string, string> = {
+    'A+': 'bg-violet-900/50 text-violet-300 border-violet-700',
+    'A':  'bg-blue-900/50 text-blue-300 border-blue-700',
+    'B':  'bg-amber-900/50 text-amber-300 border-amber-700',
+    'C':  'bg-gray-800/80 text-gray-400 border-gray-700',
+  }
+  const label = size === 'md' ? perfil : code
+  return (
+    <span
+      className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold border ${styles[code]}`}
+      title={perfil}
+    >
+      {label}
+    </span>
+  )
 }
 
 type DiagStatus = {
@@ -334,6 +356,12 @@ function Modal({ lead, onClose, onDiagnosticoFound, responsaveis, onResponsavelC
 
           {/* Qualificação */}
           <Section title="Qualificação">
+            {lead.perfil && (
+              <div className="flex gap-2 items-center">
+                <span className="text-gray-500 shrink-0">Perfil:</span>
+                <PerfilBadge perfil={lead.perfil} size="md" />
+              </div>
+            )}
             <Row label="Urgência" value={lead.urgencia} valueClass={urgencyColor(lead.urgencia)} />
             <Row label="Já teve agência" value={lead.trabalhou_agencia} />
             <Row label="Monetiza conhecimento" value={lead.monetiza_conhecimento} />
@@ -658,7 +686,12 @@ export default function Page() {
                             </a>
                           )}
                         </div>
-                        {lead.empresa && <p className="text-gray-500 text-xs mt-0.5">{lead.empresa}</p>}
+                        {(lead.empresa || lead.perfil) && (
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            {lead.empresa && <p className="text-gray-500 text-xs">{lead.empresa}</p>}
+                            <PerfilBadge perfil={lead.perfil} />
+                          </div>
+                        )}
                         <CopyEmail email={lead.email} />
                       </td>
                       <td className="px-4 py-3 text-gray-400 hidden lg:table-cell">{lead.tipo_negocio || '—'}</td>
