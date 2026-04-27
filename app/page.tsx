@@ -272,6 +272,117 @@ function DiagnosticoPanel({ lead, onDiagnosticoFound }: { lead: Lead; onDiagnost
   )
 }
 
+type Nota = {
+  id: number
+  texto: string
+  criado_em: string
+  responsavel_nome: string | null
+}
+
+function NotasPanel({ leadId, responsavelId }: { leadId: number; responsavelId: number | null }) {
+  const [notas, setNotas] = useState<Nota[]>([])
+  const [texto, setTexto] = useState('')
+  const [salvando, setSalvando] = useState(false)
+  const [erro, setErro] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetch(`/api/leads/${leadId}/notas`)
+      .then(r => r.json())
+      .then(data => Array.isArray(data) ? setNotas(data) : null)
+      .catch(() => {})
+  }, [leadId])
+
+  const salvar = async () => {
+    if (!texto.trim()) return
+    setSalvando(true)
+    setErro(null)
+    try {
+      const res = await fetch(`/api/leads/${leadId}/notas`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ texto, responsavel_id: responsavelId }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Erro ao salvar')
+      setNotas(prev => [{ ...data, responsavel_nome: null }, ...prev])
+      setTexto('')
+    } catch (e: unknown) {
+      setErro(e instanceof Error ? e.message : 'Erro ao salvar')
+    } finally {
+      setSalvando(false)
+    }
+  }
+
+  const excluir = async (notaId: number) => {
+    await fetch(`/api/leads/${leadId}/notas`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nota_id: notaId }),
+    })
+    setNotas(prev => prev.filter(n => n.id !== notaId))
+  }
+
+  const formatDateTime = (dt: string) =>
+    new Date(dt).toLocaleString('pt-BR', {
+      day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    })
+
+  return (
+    <div className="mt-5 border-t border-gray-800 pt-4">
+      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Observações</p>
+
+      {/* Input nova nota */}
+      <div className="flex flex-col gap-2 mb-4">
+        <textarea
+          value={texto}
+          onChange={e => setTexto(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) salvar() }}
+          placeholder="Digite uma observação... (Ctrl+Enter para salvar)"
+          rows={3}
+          className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-100 placeholder-gray-600 focus:outline-none focus:border-indigo-500 resize-none"
+        />
+        <div className="flex items-center justify-between">
+          {erro && <p className="text-red-400 text-xs">{erro}</p>}
+          <button
+            onClick={salvar}
+            disabled={salvando || !texto.trim()}
+            className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-700 hover:bg-indigo-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs rounded-lg transition-colors"
+          >
+            {salvando ? 'Salvando...' : 'Salvar observação'}
+          </button>
+        </div>
+      </div>
+
+      {/* Lista de notas */}
+      {notas.length === 0 ? (
+        <p className="text-gray-600 text-xs text-center py-3">Nenhuma observação registrada.</p>
+      ) : (
+        <div className="flex flex-col gap-2 max-h-60 overflow-y-auto pr-1">
+          {notas.map(n => (
+            <div key={n.id} className="bg-gray-800/60 border border-gray-700/60 rounded-lg px-3 py-2.5 group">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-gray-500 text-[11px]">
+                  {formatDateTime(n.criado_em)}
+                  {n.responsavel_nome && <span className="text-gray-600"> · {n.responsavel_nome}</span>}
+                </span>
+                <button
+                  onClick={() => excluir(n.id)}
+                  className="opacity-0 group-hover:opacity-100 text-gray-600 hover:text-red-400 text-xs transition-all"
+                  title="Excluir observação"
+                >
+                  ✕
+                </button>
+              </div>
+              <p className="text-gray-200 text-sm whitespace-pre-wrap">{n.texto}</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function Modal({ lead, onClose, onDiagnosticoFound, responsaveis, onResponsavelChange }: {
   lead: Lead
   onClose: () => void
@@ -401,6 +512,9 @@ function Modal({ lead, onClose, onDiagnosticoFound, responsaveis, onResponsavelC
 
         {/* Diagnóstico */}
         <DiagnosticoPanel lead={lead} onDiagnosticoFound={onDiagnosticoFound} />
+
+        {/* Observações */}
+        <NotasPanel leadId={lead.id} responsavelId={lead.responsavel_id} />
       </div>
     </div>
   )
