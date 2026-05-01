@@ -60,11 +60,12 @@ type Lead = {
   stage: string
   submit_date: string | null
   stage_date: string | null
+  canal_vendas: string | null
   responsavel_id: number | null
   responsavel_nome: string | null
 }
 
-type SortKey = 'date' | 'name' | 'perfil' | 'segmento' | 'faturamento' | 'stage' | 'responsavel' | 'status' | 'diagnostico'
+type SortKey = 'date' | 'canal_vendas' | 'name' | 'perfil' | 'segmento' | 'faturamento' | 'stage' | 'status' | 'diagnostico'
 type SortDirection = 'asc' | 'desc'
 
 const STAGES: { value: string; label: string; color: string; bg: string; border: string }[] = [
@@ -115,6 +116,7 @@ function firstCurrencyNumber(value: string | null) {
 
 function getSortValue(lead: Lead, key: SortKey): string | number | null {
   if (key === 'date') return dateValue(lead.submit_date || lead.stage_date)
+  if (key === 'canal_vendas') return lead.canal_vendas?.toLowerCase() ?? null
   if (key === 'name') return getLeadName(lead).toLowerCase() || null
   if (key === 'perfil') {
     const code = perfilCode(lead.perfil)
@@ -123,7 +125,6 @@ function getSortValue(lead: Lead, key: SortKey): string | number | null {
   if (key === 'segmento') return lead.tipo_negocio?.toLowerCase() ?? null
   if (key === 'faturamento') return firstCurrencyNumber(lead.faturamento_anual)
   if (key === 'stage') return STAGES.findIndex(s => s.value === (lead.stage || 'nao_iniciado'))
-  if (key === 'responsavel') return lead.responsavel_nome?.toLowerCase() ?? null
   if (key === 'status') return STATUS_SORT_ORDER[lead.response_type] ?? null
   if (key === 'diagnostico') return lead.diagnostico_url ? 0 : 1
   return null
@@ -684,6 +685,22 @@ function HeaderControl({ label, column, activeSort, direction, onSort, onFilterC
   )
 }
 
+function ResponsavelDot({ nome }: { nome: string | null }) {
+  const initials = nome?.trim().slice(0, 2).toUpperCase()
+  return (
+    <span
+      title={nome ? `Responsável: ${nome}` : 'Sem responsável'}
+      className={`mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-[10px] font-bold ${
+        initials
+          ? 'border-indigo-700/70 bg-indigo-950/50 text-indigo-200'
+          : 'border-gray-700 bg-gray-800/70 text-gray-500'
+      }`}
+    >
+      {initials || 'SR'}
+    </span>
+  )
+}
+
 export default function Page() {
   const [leads, setLeads] = useState<Lead[]>([])
   const [filtered, setFiltered] = useState<Lead[]>([])
@@ -759,7 +776,7 @@ export default function Page() {
     if (search.trim()) {
       const q = search.toLowerCase()
       result = result.filter(l =>
-        [l.first_name, l.last_name, l.empresa, l.email].some(v => v?.toLowerCase().includes(q))
+        [l.first_name, l.last_name, l.empresa, l.email, l.canal_vendas].some(v => v?.toLowerCase().includes(q))
       )
     }
     if (dateFrom) {
@@ -828,6 +845,10 @@ export default function Page() {
       ? { ...l, responsavel_id, responsavel_nome: resp?.nome ?? null }
       : l
     ))
+    setSelected(prev => prev?.id === leadId
+      ? { ...prev, responsavel_id, responsavel_nome: resp?.nome ?? null }
+      : prev
+    )
     fetch(`/api/leads/${leadId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -943,6 +964,9 @@ export default function Page() {
                   <th className="text-left px-4 py-3 hidden sm:table-cell">
                     <HeaderControl label="Data" column="date" activeSort={sortKey} direction={sortDirection} onSort={handleSort} />
                   </th>
+                  <th className="text-left px-4 py-3 hidden md:table-cell">
+                    <HeaderControl label="Canal de vendas" column="canal_vendas" activeSort={sortKey} direction={sortDirection} onSort={handleSort} />
+                  </th>
                   <th className="text-left px-4 py-3">
                     <HeaderControl label="Nome" column="name" activeSort={sortKey} direction={sortDirection} onSort={handleSort} />
                   </th>
@@ -1055,9 +1079,6 @@ export default function Page() {
                       </div>
                     )}
                   </th>
-                  <th className="text-left px-4 py-3 hidden md:table-cell">
-                    <HeaderControl label="Responsável" column="responsavel" activeSort={sortKey} direction={sortDirection} onSort={handleSort} />
-                  </th>
                   <th className="text-left px-4 py-3">
                     <HeaderControl label="Status" column="status" activeSort={sortKey} direction={sortDirection} onSort={handleSort} />
                   </th>
@@ -1081,10 +1102,18 @@ export default function Page() {
                       className={`border-b border-gray-800/60 cursor-pointer hover:bg-gray-800/50 transition-colors ${i % 2 === 0 ? '' : 'bg-gray-900/50'}`}
                     >
                       <td className="px-4 py-3 text-gray-400 hidden sm:table-cell whitespace-nowrap">{formatDate(lead.submit_date || lead.stage_date)}</td>
+                      <td className="px-4 py-3 text-gray-400 hidden md:table-cell">
+                        <span className="block max-w-[170px] truncate" title={lead.canal_vendas || undefined}>
+                          {lead.canal_vendas || '—'}
+                        </span>
+                      </td>
                       <td className="px-4 py-3">
-                        <div className="flex items-center gap-1.5">
-                          <p className="text-gray-100 font-medium">{name}</p>
-                          {formatPhone(lead.phone) && (
+                        <div className="flex items-start gap-2">
+                          <ResponsavelDot nome={lead.responsavel_nome} />
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <p className="text-gray-100 font-medium">{name}</p>
+                              {formatPhone(lead.phone) && (
                             <a
                               href={`https://wa.me/${formatPhone(lead.phone)}`}
                               target="_blank"
@@ -1096,9 +1125,11 @@ export default function Page() {
                               <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.126 1.533 5.857L.057 23.857a.5.5 0 0 0 .612.612l6.004-1.476A11.933 11.933 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.907 0-3.7-.528-5.228-1.449l-.374-.222-3.875.952.97-3.773-.244-.389A9.956 9.956 0 0 1 2 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
                             </a>
                           )}
+                            </div>
+                            {lead.empresa && <p className="text-gray-500 text-xs mt-0.5">{lead.empresa}</p>}
+                            <CopyEmail email={lead.email} />
+                          </div>
                         </div>
-                        {lead.empresa && <p className="text-gray-500 text-xs mt-0.5">{lead.empresa}</p>}
-                        <CopyEmail email={lead.email} />
                       </td>
                       <td className="px-4 py-3 hidden md:table-cell">
                         <PerfilBadge perfil={lead.perfil} />
@@ -1122,18 +1153,6 @@ export default function Page() {
                             </select>
                           )
                         })()}
-                      </td>
-                      <td className="px-4 py-3 hidden md:table-cell" onClick={e => e.stopPropagation()}>
-                        <select
-                          value={lead.responsavel_id ?? ''}
-                          onChange={e => handleResponsavelChange(lead.id, e.target.value ? Number(e.target.value) : null)}
-                          className="text-xs rounded-lg px-2 py-1 border border-gray-700 bg-gray-800/60 text-gray-300 cursor-pointer focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                        >
-                          <option value="">—</option>
-                          {responsaveis.map(r => (
-                            <option key={r.id} value={r.id} className="bg-gray-900 text-gray-100">{r.nome}</option>
-                          ))}
-                        </select>
                       </td>
                       <td className="px-4 py-3">
                         {lead.response_type === 'completed'

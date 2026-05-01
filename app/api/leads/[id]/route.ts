@@ -55,7 +55,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
   try {
     const body = await req.json()
-    const { stage, responsavel_id, perfil } = body
+    const { stage, responsavel_id, perfil, canal_vendas } = body
 
     // Atualiza perfil
     if (perfil !== undefined) {
@@ -104,6 +104,13 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       await pool.query(
         'UPDATE leads SET responsavel_id = $1 WHERE id = $2',
         [responsavel_id || null, id]
+      )
+    }
+
+    if (canal_vendas !== undefined) {
+      await pool.query(
+        'UPDATE leads SET canal_vendas = $1 WHERE id = $2',
+        [typeof canal_vendas === 'string' && canal_vendas.trim() ? canal_vendas.trim() : null, id]
       )
     }
 

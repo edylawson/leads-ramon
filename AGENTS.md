@@ -89,6 +89,7 @@ perfil TEXT - 'A' | 'B' | 'C'
 origem TEXT - 'brasil' | 'eua'
 stage TEXT
 stage_date, submit_date, created_at
+canal_vendas TEXT
 responsavel_id FK -> responsaveis.id
 diagnostico_url TEXT
 ```
