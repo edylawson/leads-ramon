@@ -6,9 +6,9 @@
 BEGIN;
 
 -- ----------------------------------------------------------
--- 1. BRASIL — renomear valores para formato simples (A+/A/B/C)
+-- 1. BRASIL — renomear valores para formato simples (A/B/C)
 -- ----------------------------------------------------------
-UPDATE leads SET perfil = 'A+' WHERE perfil LIKE 'A+%' AND origem = 'brasil';
+UPDATE leads SET perfil = 'A'  WHERE perfil LIKE 'A+%' AND origem = 'brasil';
 UPDATE leads SET perfil = 'A'  WHERE perfil LIKE 'A (%' AND origem = 'brasil';
 UPDATE leads SET perfil = 'B'  WHERE perfil LIKE 'B (%' AND origem = 'brasil';
 UPDATE leads SET perfil = 'C'  WHERE perfil LIKE 'C (%' AND origem = 'brasil';

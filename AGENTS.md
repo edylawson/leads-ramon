@@ -85,7 +85,7 @@ dor_sem_clientes, dor_sem_mkt, dor_sem_google, ... (booleans)
 problema_principal, urgencia, trabalhou_agencia
 intencao_avancar, intencao_entender, intencao_talvez
 intencao_nao_momento, intencao_sem_orcamento, intencao_pensar (booleans)
-perfil TEXT - 'A+' | 'A' | 'B' | 'C'
+perfil TEXT - 'A' | 'B' | 'C'
 origem TEXT - 'brasil' | 'eua'
 stage TEXT
 stage_date, submit_date, created_at

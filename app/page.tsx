@@ -80,7 +80,7 @@ const STAGES: { value: string; label: string; color: string; bg: string; border:
   { value: 'perdido',            label: 'Perdido',            color: 'text-red-400',    bg: 'bg-red-900/30',      border: 'border-red-800' },
 ]
 
-const PERFIL_SORT_ORDER: Record<string, number> = { 'A+': 0, A: 1, B: 2, C: 3 }
+const PERFIL_SORT_ORDER: Record<string, number> = { A: 0, B: 1, C: 2 }
 const STATUS_SORT_ORDER: Record<string, number> = { completed: 0, partial: 1 }
 
 function formatPhone(phone: string | null): string | null {
@@ -90,6 +90,13 @@ function formatPhone(phone: string | null): string | null {
 
 function getLeadName(lead: Lead) {
   return [lead.first_name, lead.last_name].filter(Boolean).join(' ')
+}
+
+function perfilCode(perfil: string | null) {
+  if (!perfil) return null
+  if (perfil.startsWith('A')) return 'A'
+  if (perfil.startsWith('B')) return 'B'
+  return 'C'
 }
 
 function dateValue(dateStr: string | null) {
@@ -109,7 +116,10 @@ function firstCurrencyNumber(value: string | null) {
 function getSortValue(lead: Lead, key: SortKey): string | number | null {
   if (key === 'date') return dateValue(lead.submit_date || lead.stage_date)
   if (key === 'name') return getLeadName(lead).toLowerCase() || null
-  if (key === 'perfil') return lead.perfil ? PERFIL_SORT_ORDER[lead.perfil] ?? 99 : null
+  if (key === 'perfil') {
+    const code = perfilCode(lead.perfil)
+    return code ? PERFIL_SORT_ORDER[code] ?? 99 : null
+  }
   if (key === 'segmento') return lead.tipo_negocio?.toLowerCase() ?? null
   if (key === 'faturamento') return firstCurrencyNumber(lead.faturamento_anual)
   if (key === 'stage') return STAGES.findIndex(s => s.value === (lead.stage || 'nao_iniciado'))
@@ -195,9 +205,9 @@ function urgencyColor(urgencia: string | null) {
 
 function PerfilBadge({ perfil }: { perfil: string | null; size?: 'sm' | 'md' }) {
   if (!perfil) return null
-  const code = perfil.startsWith('A+') ? 'A+' : perfil.startsWith('A') ? 'A' : perfil.startsWith('B') ? 'B' : 'C'
+  const code = perfilCode(perfil)
+  if (!code) return null
   const styles: Record<string, string> = {
-    'A+': 'bg-violet-900/50 text-violet-300 border-violet-700',
     'A':  'bg-green-900/50 text-green-300 border-green-700',
     'B':  'bg-amber-900/50 text-amber-300 border-amber-700',
     'C':  'bg-red-900/50 text-red-400 border-red-800',
@@ -783,10 +793,9 @@ export default function Page() {
   const completed = filtered.filter(l => l.response_type === 'completed').length
   const partial = filtered.filter(l => l.response_type === 'partial').length
   const perfilCounts = {
-    'A+': filtered.filter(l => l.perfil?.startsWith('A+')).length,
-    A: filtered.filter(l => l.perfil === 'A').length,
-    B: filtered.filter(l => l.perfil === 'B').length,
-    C: filtered.filter(l => l.perfil === 'C').length,
+    A: filtered.filter(l => perfilCode(l.perfil) === 'A').length,
+    B: filtered.filter(l => perfilCode(l.perfil) === 'B').length,
+    C: filtered.filter(l => perfilCode(l.perfil) === 'C').length,
   }
 
   const handleSort = (key: SortKey) => {
@@ -843,7 +852,6 @@ export default function Page() {
               <Stat label="Parciais" value={partial} color="yellow" />
             </div>
             <div className="flex flex-wrap justify-start sm:justify-end gap-2">
-              <PerfilStat label="A+" value={perfilCounts['A+']} color="violet" />
               <PerfilStat label="A" value={perfilCounts.A} color="green" />
               <PerfilStat label="B" value={perfilCounts.B} color="yellow" />
               <PerfilStat label="C" value={perfilCounts.C} color="red" />
@@ -960,7 +968,6 @@ export default function Page() {
                         </button>
                         <div className="border-t border-gray-800 my-1" />
                         {[
-                          { value: 'A+', label: 'A+', cls: 'text-violet-300' },
                           { value: 'A',  label: 'A',  cls: 'text-green-300'  },
                           { value: 'B',  label: 'B',  cls: 'text-amber-300'  },
                           { value: 'C',  label: 'C',  cls: 'text-red-400'    },
@@ -1172,9 +1179,8 @@ function Stat({ label, value, color }: { label: string; value: number; color?: '
   )
 }
 
-function PerfilStat({ label, value, color }: { label: string; value: number; color: 'violet' | 'green' | 'yellow' | 'red' }) {
+function PerfilStat({ label, value, color }: { label: string; value: number; color: 'green' | 'yellow' | 'red' }) {
   const styles = {
-    violet: 'border-violet-800/70 bg-violet-950/30 text-violet-300',
     green: 'border-green-800/70 bg-green-950/30 text-green-300',
     yellow: 'border-yellow-800/70 bg-yellow-950/30 text-yellow-300',
     red: 'border-red-800/70 bg-red-950/30 text-red-300',

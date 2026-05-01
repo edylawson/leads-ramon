@@ -59,7 +59,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
     // Atualiza perfil
     if (perfil !== undefined) {
-      const VALID_PERFIS = ['A+', 'A', 'B', 'C']
+      const VALID_PERFIS = ['A', 'B', 'C']
       if (perfil !== null && !VALID_PERFIS.includes(perfil)) {
         return NextResponse.json({ error: 'Perfil inválido' }, { status: 400 })
       }
