@@ -782,6 +782,12 @@ export default function Page() {
   const total = filtered.length
   const completed = filtered.filter(l => l.response_type === 'completed').length
   const partial = filtered.filter(l => l.response_type === 'partial').length
+  const perfilCounts = {
+    'A+': filtered.filter(l => l.perfil?.startsWith('A+')).length,
+    A: filtered.filter(l => l.perfil === 'A').length,
+    B: filtered.filter(l => l.perfil === 'B').length,
+    C: filtered.filter(l => l.perfil === 'C').length,
+  }
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -830,10 +836,18 @@ export default function Page() {
           <div>
             <h1 className="text-2xl font-bold text-white">LEADS HIGH DIGITAL</h1>
           </div>
-          <div className="flex gap-3">
-            <Stat label="Total" value={total} />
-            <Stat label="Completos" value={completed} color="green" />
-            <Stat label="Parciais" value={partial} color="yellow" />
+          <div className="flex flex-col items-start sm:items-end gap-2">
+            <div className="flex gap-3">
+              <Stat label="Total" value={total} />
+              <Stat label="Completos" value={completed} color="green" />
+              <Stat label="Parciais" value={partial} color="yellow" />
+            </div>
+            <div className="flex flex-wrap justify-start sm:justify-end gap-2">
+              <PerfilStat label="A+" value={perfilCounts['A+']} color="violet" />
+              <PerfilStat label="A" value={perfilCounts.A} color="green" />
+              <PerfilStat label="B" value={perfilCounts.B} color="yellow" />
+              <PerfilStat label="C" value={perfilCounts.C} color="red" />
+            </div>
           </div>
         </div>
 
@@ -1154,6 +1168,22 @@ function Stat({ label, value, color }: { label: string; value: number; color?: '
     <div className="bg-gray-900 border border-gray-800 rounded-lg px-4 py-2 text-center min-w-[70px]">
       <p className={`text-xl font-bold ${color === 'green' ? 'text-green-400' : color === 'yellow' ? 'text-yellow-400' : 'text-white'}`}>{value}</p>
       <p className="text-gray-500 text-xs">{label}</p>
+    </div>
+  )
+}
+
+function PerfilStat({ label, value, color }: { label: string; value: number; color: 'violet' | 'green' | 'yellow' | 'red' }) {
+  const styles = {
+    violet: 'border-violet-800/70 bg-violet-950/30 text-violet-300',
+    green: 'border-green-800/70 bg-green-950/30 text-green-300',
+    yellow: 'border-yellow-800/70 bg-yellow-950/30 text-yellow-300',
+    red: 'border-red-800/70 bg-red-950/30 text-red-300',
+  }
+
+  return (
+    <div className={`min-w-[50px] rounded-lg border px-3 py-1.5 text-center ${styles[color]}`}>
+      <p className="text-base font-bold leading-none">{value}</p>
+      <p className="mt-1 text-[10px] font-semibold leading-none">{label}</p>
     </div>
   )
 }
