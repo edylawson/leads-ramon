@@ -83,6 +83,7 @@ const STAGES: { value: string; label: string; color: string; bg: string; border:
 
 const PERFIL_SORT_ORDER: Record<string, number> = { A: 0, B: 1, C: 2 }
 const STATUS_SORT_ORDER: Record<string, number> = { completed: 0, partial: 1 }
+const SEM_PERFIL_FILTER = '__sem_perfil'
 
 function formatPhone(phone: string | null): string | null {
   if (!phone) return null
@@ -771,7 +772,11 @@ export default function Page() {
     if (origemFilter !== 'todos') result = result.filter(l => l.origem === origemFilter)
     if (filter !== 'all') result = result.filter(l => l.response_type === filter)
     if (stageFilter) result = result.filter(l => (l.stage || 'nao_iniciado') === stageFilter)
-    if (perfilFilter) result = result.filter(l => l.perfil === perfilFilter)
+    if (perfilFilter === SEM_PERFIL_FILTER) {
+      result = result.filter(l => !perfilCode(l.perfil))
+    } else if (perfilFilter) {
+      result = result.filter(l => perfilCode(l.perfil) === perfilFilter)
+    }
     if (faturamentoFilter) result = result.filter(l => l.faturamento_anual === faturamentoFilter)
     if (search.trim()) {
       const q = search.toLowerCase()
@@ -813,6 +818,7 @@ export default function Page() {
     A: filtered.filter(l => perfilCode(l.perfil) === 'A').length,
     B: filtered.filter(l => perfilCode(l.perfil) === 'B').length,
     C: filtered.filter(l => perfilCode(l.perfil) === 'C').length,
+    semPerfil: filtered.filter(l => !perfilCode(l.perfil)).length,
   }
 
   const handleSort = (key: SortKey) => {
@@ -822,6 +828,10 @@ export default function Page() {
     }
     setSortKey(key)
     setSortDirection('asc')
+  }
+
+  const togglePerfilFilter = (perfil: string) => {
+    setPerfilFilter(current => current === perfil ? '' : perfil)
   }
 
   const handleStageChange = (leadId: number, stage: string) => {
@@ -873,9 +883,12 @@ export default function Page() {
               <Stat label="Parciais" value={partial} color="yellow" />
             </div>
             <div className="flex flex-wrap justify-start sm:justify-end gap-2">
-              <PerfilStat label="A" value={perfilCounts.A} color="green" />
-              <PerfilStat label="B" value={perfilCounts.B} color="yellow" />
-              <PerfilStat label="C" value={perfilCounts.C} color="red" />
+              <PerfilStat label="A" value={perfilCounts.A} color="green" active={perfilFilter === 'A'} onClick={() => togglePerfilFilter('A')} />
+              <PerfilStat label="B" value={perfilCounts.B} color="yellow" active={perfilFilter === 'B'} onClick={() => togglePerfilFilter('B')} />
+              <PerfilStat label="C" value={perfilCounts.C} color="red" active={perfilFilter === 'C'} onClick={() => togglePerfilFilter('C')} />
+              {perfilCounts.semPerfil > 0 && (
+                <PerfilStat label="Sem perfil" value={perfilCounts.semPerfil} color="gray" active={perfilFilter === SEM_PERFIL_FILTER} onClick={() => togglePerfilFilter(SEM_PERFIL_FILTER)} />
+              )}
             </div>
           </div>
         </div>
@@ -989,6 +1002,14 @@ export default function Page() {
                         >
                           {!perfilFilter && <span className="text-indigo-400">✓</span>}
                           Todos os perfis
+                        </button>
+                        <div className="border-t border-gray-800 my-1" />
+                        <button
+                          onClick={() => { setPerfilFilter(SEM_PERFIL_FILTER); setPerfilDropdownOpen(false) }}
+                          className={`w-full text-left px-3 py-1.5 text-xs normal-case tracking-normal hover:bg-gray-800 transition-colors flex items-center gap-2 ${perfilFilter === SEM_PERFIL_FILTER ? 'text-indigo-400 font-semibold' : 'text-gray-400'}`}
+                        >
+                          {perfilFilter === SEM_PERFIL_FILTER && <span>✓</span>}
+                          Sem perfil
                         </button>
                         <div className="border-t border-gray-800 my-1" />
                         {[
@@ -1198,17 +1219,31 @@ function Stat({ label, value, color }: { label: string; value: number; color?: '
   )
 }
 
-function PerfilStat({ label, value, color }: { label: string; value: number; color: 'green' | 'yellow' | 'red' }) {
+function PerfilStat({ label, value, color, active, onClick }: {
+  label: string
+  value: number
+  color: 'green' | 'yellow' | 'red' | 'gray'
+  active?: boolean
+  onClick?: () => void
+}) {
   const styles = {
     green: 'border-green-800/70 bg-green-950/30 text-green-300',
     yellow: 'border-yellow-800/70 bg-yellow-950/30 text-yellow-300',
     red: 'border-red-800/70 bg-red-950/30 text-red-300',
+    gray: 'border-gray-700 bg-gray-800/70 text-gray-400',
   }
 
   return (
-    <div className={`min-w-[50px] rounded-lg border px-3 py-1.5 text-center ${styles[color]}`}>
+    <button
+      type="button"
+      onClick={onClick}
+      title={active ? `Remover filtro ${label}` : `Filtrar perfil ${label}`}
+      className={`min-w-[58px] rounded-lg border px-3 py-1.5 text-center transition-all hover:-translate-y-0.5 hover:border-indigo-500/70 ${styles[color]} ${
+        active ? 'ring-2 ring-indigo-400/70 ring-offset-1 ring-offset-gray-950' : ''
+      }`}
+    >
       <p className="text-base font-bold leading-none">{value}</p>
-      <p className="mt-1 text-[10px] font-semibold leading-none">{label}</p>
-    </div>
+      <p className="mt-1 text-[10px] font-semibold leading-none whitespace-nowrap">{label}</p>
+    </button>
   )
 }
