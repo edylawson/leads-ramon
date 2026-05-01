@@ -635,11 +635,17 @@ function SortButton({ column, activeSort, direction, onSort }: {
   onSort: (column: SortKey) => void
 }) {
   const active = activeSort === column
+  const title = !active
+    ? 'Ordenar asc'
+    : direction === 'asc'
+      ? 'Ordenar desc'
+      : 'Remover ordenação'
+
   return (
     <button
       type="button"
       onClick={e => { e.stopPropagation(); onSort(column) }}
-      title={active && direction === 'asc' ? 'Ordenar desc' : 'Ordenar asc'}
+      title={title}
       className={`inline-flex h-5 w-5 items-center justify-center rounded border transition-colors ${
         active
           ? 'border-indigo-500/60 bg-indigo-500/10 text-indigo-300'
@@ -722,6 +728,9 @@ export default function Page() {
   const [faturamentoFilter, setFaturamentoFilter] = useState<string>('')
   const [faturamentoDropdownOpen, setFaturamentoDropdownOpen] = useState(false)
   const faturamentoDropdownRef = useRef<HTMLTableCellElement>(null)
+  const [canalVendasFilter, setCanalVendasFilter] = useState<string>('')
+  const [canalVendasDropdownOpen, setCanalVendasDropdownOpen] = useState(false)
+  const canalVendasDropdownRef = useRef<HTMLTableCellElement>(null)
   const [sortKey, setSortKey] = useState<SortKey | null>('date')
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
 
@@ -768,6 +777,16 @@ export default function Page() {
   }, [faturamentoDropdownOpen])
 
   useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (canalVendasDropdownRef.current && !canalVendasDropdownRef.current.contains(e.target as Node)) {
+        setCanalVendasDropdownOpen(false)
+      }
+    }
+    if (canalVendasDropdownOpen) document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [canalVendasDropdownOpen])
+
+  useEffect(() => {
     let result = leads
     if (origemFilter !== 'todos') result = result.filter(l => l.origem === origemFilter)
     if (filter !== 'all') result = result.filter(l => l.response_type === filter)
@@ -778,6 +797,7 @@ export default function Page() {
       result = result.filter(l => perfilCode(l.perfil) === perfilFilter)
     }
     if (faturamentoFilter) result = result.filter(l => l.faturamento_anual === faturamentoFilter)
+    if (canalVendasFilter) result = result.filter(l => l.canal_vendas === canalVendasFilter)
     if (search.trim()) {
       const q = search.toLowerCase()
       result = result.filter(l =>
@@ -800,7 +820,7 @@ export default function Page() {
       result = [...result].sort((a, b) => compareLeads(a, b, sortKey, sortDirection))
     }
     setFiltered(result)
-  }, [leads, search, filter, origemFilter, stageFilter, perfilFilter, faturamentoFilter, dateFrom, dateTo, sortKey, sortDirection])
+  }, [leads, search, filter, origemFilter, stageFilter, perfilFilter, faturamentoFilter, canalVendasFilter, dateFrom, dateTo, sortKey, sortDirection])
 
   const faturamentoOptions = Array.from(
     new Set(leads.map(l => l.faturamento_anual).filter((value): value is string => Boolean(value)))
@@ -810,6 +830,10 @@ export default function Page() {
     if (aValue !== null && bValue !== null && aValue !== bValue) return aValue - bValue
     return a.localeCompare(b, 'pt-BR', { numeric: true, sensitivity: 'base' })
   })
+
+  const canalVendasOptions = Array.from(
+    new Set(leads.map(l => l.canal_vendas).filter((value): value is string => Boolean(value)))
+  ).sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true, sensitivity: 'base' }))
 
   const total = filtered.length
   const completed = filtered.filter(l => l.response_type === 'completed').length
@@ -823,7 +847,12 @@ export default function Page() {
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) {
-      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')
+      if (sortDirection === 'asc') {
+        setSortDirection('desc')
+        return
+      }
+      setSortKey(null)
+      setSortDirection('desc')
       return
     }
     setSortKey(key)
@@ -977,8 +1006,39 @@ export default function Page() {
                   <th className="text-left px-4 py-3 hidden sm:table-cell">
                     <HeaderControl label="Data" column="date" activeSort={sortKey} direction={sortDirection} onSort={handleSort} />
                   </th>
-                  <th className="text-left px-4 py-3 hidden md:table-cell">
-                    <HeaderControl label="Canal de vendas" column="canal_vendas" activeSort={sortKey} direction={sortDirection} onSort={handleSort} />
+                  <th ref={canalVendasDropdownRef} className="text-left px-4 py-3 hidden md:table-cell relative">
+                    <HeaderControl
+                      label="Canal de vendas"
+                      column="canal_vendas"
+                      activeSort={sortKey}
+                      direction={sortDirection}
+                      onSort={handleSort}
+                      onFilterClick={() => setCanalVendasDropdownOpen(prev => !prev)}
+                      filterActive={Boolean(canalVendasFilter)}
+                      filterOpen={canalVendasDropdownOpen}
+                    />
+                    {canalVendasDropdownOpen && (
+                      <div className="absolute top-full left-0 z-30 mt-1 bg-gray-900 border border-gray-700 rounded-lg shadow-xl py-1 min-w-[260px] max-h-72 overflow-y-auto">
+                        <button
+                          onClick={() => { setCanalVendasFilter(''); setCanalVendasDropdownOpen(false) }}
+                          className={`w-full text-left px-3 py-1.5 text-xs normal-case tracking-normal hover:bg-gray-800 transition-colors flex items-center gap-2 ${!canalVendasFilter ? 'text-indigo-400 font-semibold' : 'text-gray-400'}`}
+                        >
+                          {!canalVendasFilter && <span className="text-indigo-400">✓</span>}
+                          Todos os canais
+                        </button>
+                        <div className="border-t border-gray-800 my-1" />
+                        {canalVendasOptions.map(option => (
+                          <button
+                            key={option}
+                            onClick={() => { setCanalVendasFilter(option); setCanalVendasDropdownOpen(false) }}
+                            className={`w-full text-left px-3 py-1.5 text-xs normal-case tracking-normal hover:bg-gray-800 transition-colors flex items-center gap-2 ${canalVendasFilter === option ? 'text-indigo-400 font-semibold' : 'text-gray-400'}`}
+                          >
+                            {canalVendasFilter === option && <span>✓</span>}
+                            {option}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </th>
                   <th className="text-left px-4 py-3">
                     <HeaderControl label="Nome" column="name" activeSort={sortKey} direction={sortDirection} onSort={handleSort} />
