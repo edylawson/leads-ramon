@@ -3,6 +3,8 @@ import { Pool } from 'pg'
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: false })
 
+export const dynamic = 'force-dynamic'
+
 const VALID_STAGES = ['nao_iniciado', 'tentando_contato', 'primeiro_contato', 'follow_up', 'reuniao_agendada', 'no_show', 'diagnostico_enviado', 'em_negociacao', 'ganho', 'perdido']
 
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {

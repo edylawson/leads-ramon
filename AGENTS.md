@@ -1,71 +1,81 @@
-# AGENTS.md — Leads Ramon (leads-frontend)
+# AGENTS.md - Leads Ramon (leads-frontend)
 
-Contexto para qualquer agente de IA (Claude, Codex, etc.) que trabalhe neste repositório.
-Leia este arquivo antes de fazer qualquer alteração.
+Contexto para qualquer agente de IA (Claude, Codex, etc.) que trabalhe neste repositorio.
+Leia este arquivo antes de fazer qualquer alteracao.
 
 ---
 
-## O que é este projeto
+## O que e este projeto
 
-Painel interno de gestão de leads da Agência EUA (parceria Ramon Lopes).
-Exibe leads vindos de dois formulários Typeform — Brasil e EUA — com filtros,
-modal de detalhe, controle de estágio, diagnóstico de marketing e observações por lead.
+Painel interno de gestao de leads da Agencia EUA (parceria Ramon Lopes).
+Exibe leads vindos de dois formularios Typeform - Brasil e EUA - com filtros,
+modal de detalhe, controle de estagio, diagnostico de marketing e observacoes por lead.
 
-URL em produção: `https://leadsramonbr.edylawson.com.br`
+URL em producao: `https://leadsramonbr.edylawson.com.br`
 
 ---
 
 ## Stack
 
 | Camada | Tecnologia |
-|--------|-----------|
+|--------|------------|
 | Framework | Next.js 14 (App Router) |
 | Linguagem | TypeScript |
 | Estilo | Tailwind CSS |
-| Banco | PostgreSQL 16 — **self-hosted na VPS**, não Supabase |
-| Cliente DB | `pg` (node-postgres) — sem ORM, SQL direto |
-| Deploy | Docker → ghcr.io → Coolify (VPS Hostinger) |
-| CI/CD | GitHub Actions — trigger: push em `master` |
+| Banco | PostgreSQL self-hosted na VPS, nao Supabase |
+| Cliente DB | `pg` (node-postgres), sem ORM, SQL direto |
+| Deploy | Docker -> ghcr.io -> Coolify |
+| CI/CD | GitHub Actions, trigger em push para `master` |
 
 ---
 
-## Estrutura de arquivos
+## Estrutura principal
 
-```
+```text
 app/
-  page.tsx                  ← toda a UI: tabela, filtros, modal, badges
-  globals.css
-  layout.tsx
+  page.tsx
   api/
     leads/
-      route.ts              ← GET /api/leads — retorna todos os leads
+      route.ts
       [id]/
-        route.ts            ← GET (status diagnóstico) + PATCH (stage, responsavel_id, perfil)
-        notas/route.ts      ← GET + POST de observações por lead
-    responsaveis/route.ts   ← GET lista de responsáveis ativos
-    diagnostics/
-      generate/route.ts     ← POST dispara geração de diagnóstico via FastAPI
-diagnostico-service/        ← serviço Python (FastAPI) separado — não mexer aqui
-scripts/                    ← utilitários de manutenção (não vão para produção)
+        route.ts
+        notas/route.ts
+    responsaveis/route.ts
+    diagnostics/generate/route.ts
+  diagnostico/[uuid]/route.ts
+diagnostico-service/
+scripts/
 ```
+
+Pontos criticos:
+
+- `app/page.tsx`: concentra a UI principal, filtros, tabela, modal e acoes de lead.
+- `app/api/leads/route.ts`: GET principal; qualquer mudanca aqui afeta a listagem inteira.
+- `app/api/leads/[id]/route.ts`: GET do status do diagnostico e PATCH de `stage`, `responsavel_id` e `perfil`.
+- `app/api/leads/[id]/notas/route.ts`: observacoes por lead.
+- `app/api/diagnostics/generate/route.ts`: dispara a geracao do diagnostico via servico Python.
+- `app/diagnostico/[uuid]/route.ts`: entrega o HTML salvo do diagnostico.
+- `diagnostico-service/`: servico separado de geracao; mexer aqui somente quando a tarefa envolver o fluxo de diagnostico.
 
 ---
 
 ## Banco de dados
 
-### Conexão
-Sempre via variável de ambiente — **nunca hardcodar credencial**:
+### Conexao
+
+Sempre usar variavel de ambiente. Nunca hardcodar credenciais:
+
 ```ts
 const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: false })
 ```
 
-Para scripts locais em `scripts/`, a `DATABASE_URL` está no `.env` local (não commitar).
+Para scripts locais em `scripts/`, a `DATABASE_URL` vem do `.env` local. Nunca commitar `.env`.
 
 ### Tabela principal: `leads`
 
 Colunas mais relevantes:
 
-```
+```text
 id, response_id, response_type ('completed' | 'partial')
 first_name, last_name, email, phone
 empresa, tipo_negocio, faturamento_anual, num_colaboradores, tempo_negocio
@@ -73,13 +83,13 @@ visibilidade_google, tem_gmb, usa_instagram, tem_site, url_site
 investimento_mensal, faz_anuncios, canal_aquisicao, usa_ia
 dor_sem_clientes, dor_sem_mkt, dor_sem_google, ... (booleans)
 problema_principal, urgencia, trabalhou_agencia
-intencao_avancar, intencao_entender, intencao_talvez,
+intencao_avancar, intencao_entender, intencao_talvez
 intencao_nao_momento, intencao_sem_orcamento, intencao_pensar (booleans)
-perfil       TEXT  — 'A+' | 'A' | 'B' | 'C' (A+ só para leads Brasil)
-origem       TEXT  — 'brasil' | 'eua'
-stage        TEXT  — ver VALID_STAGES abaixo
+perfil TEXT - 'A+' | 'A' | 'B' | 'C'
+origem TEXT - 'brasil' | 'eua'
+stage TEXT
 stage_date, submit_date, created_at
-responsavel_id  FK → responsaveis.id
+responsavel_id FK -> responsaveis.id
 diagnostico_url TEXT
 ```
 
@@ -87,93 +97,135 @@ diagnostico_url TEXT
 
 | Tabela | Uso |
 |--------|-----|
-| `responsaveis` | Vendedores/closers atribuíveis aos leads |
-| `leads_historico_estagios` | Log automático de mudanças de estágio (não apagar) |
-| `notas` | Observações por lead com timestamp |
-| `diagnosticos` | HTMLs de diagnóstico gerados pelo serviço Python |
+| `responsaveis` | Vendedores/closers atribuiveis aos leads |
+| `leads_historico_estagios` | Log automatico de mudancas de estagio |
+| `notas` | Observacoes por lead com timestamp |
+| `diagnosticos` | HTMLs de diagnostico gerados pelo servico Python |
 
-### Estágios válidos (`VALID_STAGES`)
+### Estagios validos (`VALID_STAGES`)
 
-```
+```text
 nao_iniciado, tentando_contato, primeiro_contato, follow_up,
 reuniao_agendada, no_show, diagnostico_enviado, em_negociacao, ganho, perdido
 ```
 
-Alguns estágios gravam timestamps de marco na primeira transição
-(`primeiro_contato_em`, `reuniao_em`, `diagnostico_enviado_em`, `fechado_em`).
-Essa lógica fica em `app/api/leads/[id]/route.ts` — não remover.
+Alguns estagios gravam timestamps de marco na primeira transicao:
+`primeiro_contato_em`, `reuniao_em`, `diagnostico_enviado_em`, `fechado_em`.
+Essa logica fica em `app/api/leads/[id]/route.ts` e nao deve ser removida.
 
-### Perfis de lead
+### Regras de schema
 
-| Perfil | Cor UI | Significado |
-|--------|--------|-------------|
-| A+ | violeta | Hot — High Ticket (só BR: livro/método) |
-| A | verde | Hot — passa direto pro closer |
-| B | âmbar | Warm — SDR / nutrição |
-| C | vermelho | Cold — automação total |
+- Nao existe sistema de migrations automatico.
+- Se precisar mudar schema, criar script em `scripts/` e executar manualmente.
+- Avisar antes de alterar colunas, constraints ou logica de historico.
 
 ---
 
-## Regras críticas de desenvolvimento
+## Regras criticas de desenvolvimento
 
-### 1. Sem cache nas API Routes
-Toda API Route que lê o banco deve ter:
+### 1. Sem cache nas rotas que leem dados dinamicos
+
+Rotas que leem do banco e precisam refletir estado atual devem usar:
+
 ```ts
 export const dynamic = 'force-dynamic'
 ```
-Sem isso o Next.js cacheia em produção e os dados ficam desatualizados.
+
+Isso vale para listagens, status, responsaveis, notas e HTML de diagnostico.
 
 ### 2. Sem ORM
-Usar `pool.query()` com SQL puro e parâmetros posicionais (`$1`, `$2`).
-Não instalar Prisma, Drizzle ou similar.
+
+Usar `pool.query()` com SQL puro e parametros posicionais (`$1`, `$2`, ...).
+Nao instalar Prisma, Drizzle ou similares.
 
 ### 3. Origem dos dados
-- `origem = 'brasil'` → formulário Typeform BR
-- `origem = 'eua'` → formulário Typeform EUA
-- Sempre filtrar por `origem` quando a lógica for específica de um país.
 
-### 4. Novos campos no banco
-Se precisar adicionar coluna: criar script SQL em `scripts/` e executar manualmente
-na VPS. **Não há sistema de migrations automático.** Avisar antes de alterar schema.
+- `origem = 'brasil'` -> formulario Typeform BR
+- `origem = 'eua'` -> formulario Typeform EUA
+- Sempre filtrar por `origem` quando a logica for especifica de um pais.
 
-### 5. Não commitar
-- `.env` (credenciais)
-- `scripts/_*.mjs` (scripts temporários de manutenção)
-- Qualquer arquivo com senha, token ou chave
+### 4. Arquivos sensiveis e temporarios
+
+Nao commitar:
+
+- `.env`
+- `.env.local`
+- `scripts/_*.mjs`
+- qualquer arquivo com senha, token ou chave
+
+---
+
+## Validacao antes de subir
+
+Minimo esperado antes de push para producao:
+
+```bash
+npm run build
+```
+
+Se a mudanca tocar diagnostico, banco ou deploy, revisar tambem:
+
+- variaveis de ambiente necessarias
+- impacto no Coolify e no workflow
+- impacto em queries de listagem e PATCH de lead
 
 ---
 
 ## Deploy
 
-```
+Fluxo principal:
+
+```text
 git push origin master
-  → GitHub Actions: build Docker image → push para ghcr.io/edylawson/leads-ramon:latest
-  → Coolify (VPS): pull da imagem + restart automático
-  → ~3-5 min para estar no ar
+  -> GitHub Actions builda a imagem Docker
+  -> push para ghcr.io/edylawson/leads-ramon:latest
+  -> workflow chama a API do Coolify
+  -> Coolify faz pull da imagem e reinicia o app
 ```
 
-- Branch de produção: `master`
-- Não há ambiente de staging — push em master vai direto para produção
-- O serviço Python (`diagnostico-service/`) tem CI/CD separado — trigger em `diagnostico-service/**`
+Regras:
+
+- Branch de producao: `master`
+- Nao ha staging; push em `master` vai para producao
+- Nunca fazer force push sem alinhamento explicito
+- Nunca commitar `.env`
+
+O servico Python tem pipeline separado:
+
+- arquivo: `.github/workflows/deploy-diagnostico.yml`
+- trigger por mudancas em `diagnostico-service/**`
+- imagem publicada em `ghcr.io/edylawson/diagnostico-service:latest`
 
 ---
 
-## Variáveis de ambiente (produção — configuradas no Coolify)
+## Variaveis de ambiente
 
-| Variável | Descrição |
-|----------|-----------|
-| `DATABASE_URL` | Connection string PostgreSQL (interna Docker) |
-| `DIAGNOSTICO_SERVICE_URL` | URL pública do serviço FastAPI de diagnóstico |
+### App Next.js
 
-Não alterar essas vars sem alinhar com o responsável pelo projeto.
+| Variavel | Uso |
+|----------|-----|
+| `DATABASE_URL` | conexao com PostgreSQL |
+| `DIAGNOSTICO_SERVICE_URL` | URL do servico FastAPI de diagnostico |
+
+### Diagnostico service
+
+| Variavel | Uso |
+|----------|-----|
+| `DATABASE_URL` | conexao com PostgreSQL |
+| `ANTHROPIC_API_KEY` | geracao do diagnostico |
+| `APIFY_API_TOKEN` | coleta de dados externos |
+| `BASE_URL` | base usada para montar a URL final do diagnostico |
+
+Nao alterar essas variaveis sem alinhar com o responsavel pelo projeto.
 
 ---
 
-## Fluxo de colaboração entre agentes
+## Colaboracao entre agentes
 
-Se mais de um agente (Claude, Codex, etc.) trabalhar neste repo:
+Se mais de um agente trabalhar neste repo:
 
-1. **Commitar antes de trocar de agente** — evita conflito de contexto
-2. **Verificar o último commit** (`git log --oneline -5`) antes de começar
-3. **Não mexer no mesmo arquivo que outro agente alterou sem sincronizar**
-4. Scripts temporários de banco: prefixo `_` em `scripts/` — apagar após uso
+1. Commitar antes de trocar de agente.
+2. Verificar o ultimo commit com `git log --oneline -5` antes de comecar.
+3. Nao mexer no mesmo arquivo que outro agente alterou sem sincronizar.
+4. Dividir por escopo sempre que possivel.
+5. Apagar scripts temporarios depois do uso, quando nao forem mais necessarios.

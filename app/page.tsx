@@ -636,8 +636,9 @@ export default function Page() {
     setFiltered(result)
   }, [leads, search, filter, origemFilter, stageFilter, perfilFilter, dateFrom, dateTo])
 
-  const completed = leads.filter(l => l.response_type === 'completed').length
-  const partial = leads.filter(l => l.response_type === 'partial').length
+  const total = filtered.length
+  const completed = filtered.filter(l => l.response_type === 'completed').length
+  const partial = filtered.filter(l => l.response_type === 'partial').length
 
   const handleStageChange = (leadId: number, stage: string) => {
     const previous = leads.find(l => l.id === leadId)?.stage ?? 'nao_iniciado'
@@ -679,7 +680,7 @@ export default function Page() {
             <p className="text-gray-500 text-sm mt-1">Formulário de diagnóstico de marketing</p>
           </div>
           <div className="flex gap-3">
-            <Stat label="Total" value={leads.length} />
+            <Stat label="Total" value={total} />
             <Stat label="Completos" value={completed} color="green" />
             <Stat label="Parciais" value={partial} color="yellow" />
           </div>

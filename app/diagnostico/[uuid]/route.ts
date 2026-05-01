@@ -3,6 +3,8 @@ import { Pool } from 'pg'
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: false })
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(_req: NextRequest, { params }: { params: { uuid: string } }) {
   const { uuid } = params
 
