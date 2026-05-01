@@ -53,6 +53,10 @@ type Lead = {
   intencao_nao_momento: boolean
   diagnostico_url: string | null
   perfil: string | null
+  origem: string
+  dor_so_brasileiro: boolean
+  intencao_sem_orcamento: boolean
+  intencao_pensar: boolean
   stage: string
   submit_date: string | null
   stage_date: string | null
@@ -79,16 +83,17 @@ function formatPhone(phone: string | null): string | null {
 }
 
 const DORES: { key: keyof Lead; label: string }[] = [
-  { key: 'dor_sem_clientes', label: 'Sem clientes suficientes' },
-  { key: 'dor_sem_mkt', label: 'Não sabe marketing digital' },
-  { key: 'dor_sem_google', label: 'Não aparece no Google' },
-  { key: 'dor_anuncio_sem_retorno', label: 'Anúncio sem retorno' },
-  { key: 'dor_sem_tempo_redes', label: 'Sem tempo para redes' },
-  { key: 'dor_dependencia_op', label: 'Dependência operacional' },
-  { key: 'dor_nao_monetiza', label: 'Não monetiza conhecimento' },
-  { key: 'dor_sem_autoridade', label: 'Sem autoridade no mercado' },
-  { key: 'dor_quer_curso', label: 'Quer criar curso/mentoria' },
-  { key: 'dor_conteudo_preso', label: 'Conteúdo preso na cabeça' },
+  { key: 'dor_sem_clientes',       label: 'Sem clientes suficientes' },
+  { key: 'dor_so_brasileiro',      label: 'Clientela só brasileira — quer atingir americanos' },
+  { key: 'dor_sem_mkt',            label: 'Não sabe marketing digital' },
+  { key: 'dor_sem_google',         label: 'Não aparece no Google' },
+  { key: 'dor_anuncio_sem_retorno',label: 'Anúncio sem retorno' },
+  { key: 'dor_sem_tempo_redes',    label: 'Sem tempo para redes' },
+  { key: 'dor_dependencia_op',     label: 'Dependência operacional' },
+  { key: 'dor_nao_monetiza',       label: 'Não monetiza conhecimento' },
+  { key: 'dor_sem_autoridade',     label: 'Sem autoridade no mercado' },
+  { key: 'dor_quer_curso',         label: 'Quer criar curso/mentoria' },
+  { key: 'dor_conteudo_preso',     label: 'Conteúdo preso na cabeça' },
 ]
 
 function CopyEmail({ email }: { email: string | null }) {
@@ -485,6 +490,8 @@ function Modal({ lead, onClose, onDiagnosticoFound, responsaveis, onResponsavelC
             {lead.intencao_entender && <Pill text="Precisa entender melhor" color="blue" />}
             {lead.intencao_talvez && <Pill text="Talvez, depende" color="yellow" />}
             {lead.intencao_nao_momento && <Pill text="Não é o momento" color="gray" />}
+            {lead.intencao_sem_orcamento && <Pill text="Sem orçamento no momento" color="gray" />}
+            {lead.intencao_pensar && <Pill text="Precisa pensar / conversar com sócios" color="gray" />}
           </Section>
         </div>
 
@@ -564,6 +571,7 @@ export default function Page() {
   const [dateTo, setDateTo] = useState('')
   const [loading, setLoading] = useState(true)
   const [responsaveis, setResponsaveis] = useState<Responsavel[]>([])
+  const [origemFilter, setOrigemFilter] = useState<'todos' | 'brasil' | 'eua'>('todos')
   const [stageFilter, setStageFilter] = useState<string>('')
   const [stageDropdownOpen, setStageDropdownOpen] = useState(false)
   const stageDropdownRef = useRef<HTMLTableCellElement>(null)
@@ -605,6 +613,7 @@ export default function Page() {
 
   useEffect(() => {
     let result = leads
+    if (origemFilter !== 'todos') result = result.filter(l => l.origem === origemFilter)
     if (filter !== 'all') result = result.filter(l => l.response_type === filter)
     if (stageFilter) result = result.filter(l => (l.stage || 'nao_iniciado') === stageFilter)
     if (perfilFilter) result = result.filter(l => l.perfil === perfilFilter)
@@ -627,7 +636,7 @@ export default function Page() {
       })
     }
     setFiltered(result)
-  }, [leads, search, filter, stageFilter, perfilFilter, dateFrom, dateTo])
+  }, [leads, search, filter, origemFilter, stageFilter, perfilFilter, dateFrom, dateTo])
 
   const completed = leads.filter(l => l.response_type === 'completed').length
   const partial = leads.filter(l => l.response_type === 'partial').length
@@ -676,6 +685,27 @@ export default function Page() {
             <Stat label="Completos" value={completed} color="green" />
             <Stat label="Parciais" value={partial} color="yellow" />
           </div>
+        </div>
+
+        {/* Toggle Brasil / EUA */}
+        <div className="flex gap-2 mb-4">
+          {([
+            { value: 'todos', label: '🌎 Todos' },
+            { value: 'brasil', label: '🇧🇷 Brasil' },
+            { value: 'eua',    label: '🇺🇸 EUA' },
+          ] as const).map(o => (
+            <button
+              key={o.value}
+              onClick={() => setOrigemFilter(o.value)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                origemFilter === o.value
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-gray-900 border border-gray-700 text-gray-400 hover:text-white'
+              }`}
+            >
+              {o.label}
+            </button>
+          ))}
         </div>
 
         {/* Filtros */}
