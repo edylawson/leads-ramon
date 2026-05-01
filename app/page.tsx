@@ -67,6 +67,8 @@ type Lead = {
 
 type SortKey = 'date' | 'canal_vendas' | 'name' | 'perfil' | 'segmento' | 'faturamento' | 'stage' | 'status' | 'diagnostico'
 type SortDirection = 'asc' | 'desc'
+type AppView = 'leads' | 'dashboard'
+type OriginFilter = 'todos' | 'brasil' | 'eua'
 
 const STAGES: { value: string; label: string; color: string; bg: string; border: string }[] = [
   { value: 'nao_iniciado',       label: 'Não iniciado',       color: 'text-gray-400',   bg: 'bg-gray-800/60',     border: 'border-gray-700' },
@@ -84,8 +86,10 @@ const STAGES: { value: string; label: string; color: string; bg: string; border:
 const PERFIL_SORT_ORDER: Record<string, number> = { A: 0, B: 1, C: 2 }
 const STATUS_SORT_ORDER: Record<string, number> = { completed: 0, partial: 1 }
 const SEM_PERFIL_FILTER = '__sem_perfil'
+const SEM_CANAL_FILTER = '__sem_canal'
 const SLA_STAGE_ALERT_DAYS = 2
 const DAY_IN_MS = 24 * 60 * 60 * 1000
+const FINAL_STAGES = new Set(['ganho', 'perdido'])
 
 function formatPhone(phone: string | null): string | null {
   if (!phone) return null
@@ -117,6 +121,42 @@ function daysSince(dateStr: string | null) {
 
 function getStageAgeDays(lead: Lead) {
   return daysSince(lead.stage_date || lead.submit_date)
+}
+
+function average(values: number[]) {
+  if (values.length === 0) return null
+  return values.reduce((sum, value) => sum + value, 0) / values.length
+}
+
+function formatAverageDays(value: number | null) {
+  if (value === null) return '--'
+  const rounded = Math.round(value * 10) / 10
+  return `${rounded}d`
+}
+
+function percent(part: number, total: number) {
+  if (total === 0) return 0
+  return Math.round((part / total) * 100)
+}
+
+function getLeadStage(lead: Lead) {
+  return lead.stage || 'nao_iniciado'
+}
+
+function getOriginLabel(origem: string) {
+  if (origem === 'brasil') return 'Brasil'
+  if (origem === 'eua') return 'EUA'
+  return origem || 'Sem origem'
+}
+
+function getChannelLabel(channel: string | null) {
+  return channel || 'Sem canal'
+}
+
+function matchesSalesChannel(lead: Lead, channelFilter: string) {
+  if (!channelFilter) return true
+  if (channelFilter === SEM_CANAL_FILTER) return !lead.canal_vendas
+  return lead.canal_vendas === channelFilter
 }
 
 function firstCurrencyNumber(value: string | null) {
@@ -751,7 +791,365 @@ function StageSlaBadge({ lead }: { lead: Lead }) {
   )
 }
 
+function AppSidebar({ activeView, onViewChange, totalLeads }: {
+  activeView: AppView
+  onViewChange: (view: AppView) => void
+  totalLeads: number
+}) {
+  const items: { value: AppView; label: string; description: string; icon: string }[] = [
+    { value: 'leads', label: 'Leads', description: 'Tabela e operacao', icon: 'LD' },
+    { value: 'dashboard', label: 'Dashboard', description: 'Resumo comercial', icon: 'DB' },
+  ]
+
+  return (
+    <aside className="border-b border-gray-800 bg-gray-950/95 p-4 lg:min-h-screen lg:w-64 lg:shrink-0 lg:border-b-0 lg:border-r lg:sticky lg:top-0">
+      <div className="flex items-center justify-between gap-4 lg:block">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-indigo-300">High Digital</p>
+          <h1 className="mt-2 text-xl font-bold text-white">Leads Hub</h1>
+          <p className="mt-1 text-xs text-gray-500">{totalLeads} leads no banco</p>
+        </div>
+        <div className="hidden rounded-full border border-indigo-800/70 bg-indigo-950/30 px-3 py-1 text-xs font-semibold text-indigo-200 sm:block lg:mt-5 lg:inline-block">
+          Comercial
+        </div>
+      </div>
+
+      <nav className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
+        {items.map(item => {
+          const active = activeView === item.value
+          return (
+            <button
+              key={item.value}
+              type="button"
+              onClick={() => onViewChange(item.value)}
+              className={`group flex items-center gap-3 rounded-2xl border px-3 py-3 text-left transition-all ${
+                active
+                  ? 'border-indigo-500/70 bg-indigo-500/10 text-white shadow-lg shadow-indigo-950/30'
+                  : 'border-gray-800 bg-gray-900/60 text-gray-400 hover:border-gray-700 hover:bg-gray-900 hover:text-white'
+              }`}
+            >
+              <span className={`flex h-10 w-10 items-center justify-center rounded-xl border text-xs font-bold ${
+                active
+                  ? 'border-indigo-400/70 bg-indigo-500 text-white'
+                  : 'border-gray-700 bg-gray-950 text-gray-500 group-hover:text-gray-200'
+              }`}>
+                {item.icon}
+              </span>
+              <span>
+                <span className="block text-sm font-semibold">{item.label}</span>
+                <span className="block text-xs text-gray-500">{item.description}</span>
+              </span>
+            </button>
+          )
+        })}
+      </nav>
+
+      <div className="mt-5 hidden rounded-2xl border border-gray-800 bg-gray-900/50 p-3 lg:block">
+        <p className="text-xs font-semibold text-gray-300">Atalho de leitura</p>
+        <p className="mt-1 text-xs leading-relaxed text-gray-500">
+          Use o dashboard para responder rapido quantos leads existem, onde travaram e quais canais estao trazendo volume.
+        </p>
+      </div>
+    </aside>
+  )
+}
+
+function DashboardMetric({ label, value, caption, color = 'white' }: {
+  label: string
+  value: string | number
+  caption: string
+  color?: 'white' | 'green' | 'red' | 'yellow' | 'indigo'
+}) {
+  const colors = {
+    white: 'text-white',
+    green: 'text-green-300',
+    red: 'text-red-300',
+    yellow: 'text-yellow-300',
+    indigo: 'text-indigo-300',
+  }
+
+  return (
+    <div className="rounded-2xl border border-gray-800 bg-gray-900/70 p-4 shadow-lg shadow-black/10">
+      <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">{label}</p>
+      <p className={`mt-3 text-3xl font-bold ${colors[color]}`}>{value}</p>
+      <p className="mt-1 text-xs text-gray-500">{caption}</p>
+    </div>
+  )
+}
+
+function DashboardFilterButton({ active, label, onClick }: {
+  active: boolean
+  label: string
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-xl border px-3 py-2 text-sm font-semibold transition-colors ${
+        active
+          ? 'border-indigo-500 bg-indigo-600 text-white'
+          : 'border-gray-700 bg-gray-900 text-gray-400 hover:text-white'
+      }`}
+    >
+      {label}
+    </button>
+  )
+}
+
+function MetricBar({ label, value, max, detail, color = 'bg-indigo-500' }: {
+  label: string
+  value: number
+  max: number
+  detail?: string
+  color?: string
+}) {
+  const width = max > 0 ? Math.max(4, Math.round((value / max) * 100)) : 0
+
+  return (
+    <div>
+      {(label || detail) && (
+        <div className="mb-1 flex items-center justify-between gap-3 text-xs">
+          <span className="font-medium text-gray-300">{label}</span>
+          <span className="text-gray-500">{detail ?? value}</span>
+        </div>
+      )}
+      <div className="h-2 overflow-hidden rounded-full bg-gray-800">
+        <div className={`h-full rounded-full ${color}`} style={{ width: `${width}%` }} />
+      </div>
+    </div>
+  )
+}
+
+function DashboardView({ leads, canalOptions, origemFilter, onOrigemChange, canalFilter, onCanalChange, loading }: {
+  leads: Lead[]
+  canalOptions: string[]
+  origemFilter: OriginFilter
+  onOrigemChange: (value: OriginFilter) => void
+  canalFilter: string
+  onCanalChange: (value: string) => void
+  loading: boolean
+}) {
+  const dashboardLeads = leads.filter(lead => {
+    const matchesOrigin = origemFilter === 'todos' || lead.origem === origemFilter
+    return matchesOrigin && matchesSalesChannel(lead, canalFilter)
+  })
+  const activeLeads = dashboardLeads.filter(lead => !FINAL_STAGES.has(getLeadStage(lead)))
+  const won = dashboardLeads.filter(lead => getLeadStage(lead) === 'ganho').length
+  const lost = dashboardLeads.filter(lead => getLeadStage(lead) === 'perdido').length
+  const open = dashboardLeads.length - won - lost
+  const stageAges = activeLeads
+    .map(getStageAgeDays)
+    .filter((value): value is number => value !== null)
+  const avgStageAge = average(stageAges)
+  const slaAlerts = activeLeads.filter(lead => {
+    const days = getStageAgeDays(lead)
+    return days !== null && days >= SLA_STAGE_ALERT_DAYS
+  }).length
+  const conversion = percent(won, dashboardLeads.length)
+
+  const stageMetrics = STAGES.map(stage => {
+    const items = dashboardLeads.filter(lead => getLeadStage(lead) === stage.value)
+    const ages = items.map(getStageAgeDays).filter((value): value is number => value !== null)
+    return {
+      ...stage,
+      count: items.length,
+      avgDays: average(ages),
+      percentage: percent(items.length, dashboardLeads.length),
+    }
+  })
+  const maxStageCount = Math.max(...stageMetrics.map(stage => stage.count), 1)
+
+  const originMetrics = (['brasil', 'eua'] as const).map(origin => {
+    const count = dashboardLeads.filter(lead => lead.origem === origin).length
+    return { label: getOriginLabel(origin), count }
+  })
+  const maxOriginCount = Math.max(...originMetrics.map(item => item.count), 1)
+
+  const channelMetrics = Array.from(
+    dashboardLeads.reduce((map, lead) => {
+      const label = getChannelLabel(lead.canal_vendas)
+      map.set(label, (map.get(label) ?? 0) + 1)
+      return map
+    }, new Map<string, number>())
+  )
+    .map(([label, count]) => ({ label, count }))
+    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, 'pt-BR'))
+  const maxChannelCount = Math.max(...channelMetrics.map(item => item.count), 1)
+  const hasNoChannel = leads.some(lead => !lead.canal_vendas)
+
+  if (loading) {
+    return (
+      <div className="rounded-3xl border border-gray-800 bg-gray-900 p-10 text-center text-gray-500">
+        Carregando dashboard...
+      </div>
+    )
+  }
+
+  return (
+    <div className="mx-auto max-w-7xl">
+      <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-indigo-300">Dashboard</p>
+          <h2 className="mt-2 text-3xl font-bold text-white">Visao geral comercial</h2>
+          <p className="mt-2 max-w-2xl text-sm text-gray-500">
+            Resumo rapido para acompanhar volume, origem, canais, ganhos, perdas e tempo parado em cada etapa.
+          </p>
+        </div>
+        <div className="rounded-2xl border border-gray-800 bg-gray-900/70 px-4 py-3 text-sm text-gray-400">
+          SLA atual: <span className="font-bold text-red-300">{SLA_STAGE_ALERT_DAYS} dias</span>
+        </div>
+      </div>
+
+      <div className="mb-6 rounded-3xl border border-gray-800 bg-gray-900/70 p-4">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">Filtros do dashboard</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {([
+                { value: 'todos', label: 'Todos' },
+                { value: 'brasil', label: 'Brasil' },
+                { value: 'eua', label: 'EUA' },
+              ] as const).map(option => (
+                <DashboardFilterButton
+                  key={option.value}
+                  active={origemFilter === option.value}
+                  label={option.label}
+                  onClick={() => onOrigemChange(option.value)}
+                />
+              ))}
+            </div>
+          </div>
+
+          <div className="min-w-full xl:min-w-[320px]">
+            <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-gray-500">
+              Canal de vendas
+            </label>
+            <select
+              value={canalFilter}
+              onChange={event => onCanalChange(event.target.value)}
+              className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-gray-200 outline-none transition-colors focus:border-indigo-500"
+            >
+              <option value="">Todos os canais</option>
+              {hasNoChannel && <option value={SEM_CANAL_FILTER}>Sem canal</option>}
+              {canalOptions.map(option => (
+                <option key={option} value={option}>{option}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
+        <DashboardMetric label="Leads" value={dashboardLeads.length} caption="No recorte atual" />
+        <DashboardMetric label="Abertos" value={open} caption="Ainda em andamento" color="indigo" />
+        <DashboardMetric label="Ganhos" value={won} caption={`${conversion}% de conversao`} color="green" />
+        <DashboardMetric label="Perdidos" value={lost} caption={`${percent(lost, dashboardLeads.length)}% do total`} color="red" />
+        <DashboardMetric label="SLA alerta" value={slaAlerts} caption={`Com ${SLA_STAGE_ALERT_DAYS}d ou mais`} color="yellow" />
+        <DashboardMetric label="Tempo medio" value={formatAverageDays(avgStageAge)} caption="Em etapas abertas" />
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-[1.5fr_1fr]">
+        <section className="rounded-3xl border border-gray-800 bg-gray-900/70 p-5">
+          <div className="mb-5 flex items-center justify-between gap-3">
+            <div>
+              <h3 className="font-semibold text-white">Leads por estagio</h3>
+              <p className="text-xs text-gray-500">Quantidade e percentual no recorte atual</p>
+            </div>
+            <span className="rounded-full border border-gray-800 px-3 py-1 text-xs text-gray-500">
+              {dashboardLeads.length} total
+            </span>
+          </div>
+          <div className="grid gap-3">
+            {stageMetrics.map(stage => (
+              <div key={stage.value} className="rounded-2xl border border-gray-800 bg-gray-950/40 p-3">
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <span className={`h-2.5 w-2.5 rounded-full ${stage.bg}`} />
+                    <span className="text-sm font-medium text-gray-200">{stage.label}</span>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-bold text-white">{stage.count}</p>
+                    <p className="text-[11px] text-gray-600">{stage.percentage}%</p>
+                  </div>
+                </div>
+                <MetricBar label="" value={stage.count} max={maxStageCount} color="bg-indigo-500" />
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <div className="grid gap-6">
+          <section className="rounded-3xl border border-gray-800 bg-gray-900/70 p-5">
+            <h3 className="font-semibold text-white">Tempo medio por estagio</h3>
+            <p className="mb-4 text-xs text-gray-500">Media de dias desde a ultima troca de etapa</p>
+            <div className="grid gap-3">
+              {stageMetrics.filter(stage => stage.count > 0).map(stage => (
+                <div key={stage.value} className="flex items-center justify-between rounded-2xl bg-gray-950/50 px-3 py-2">
+                  <span className="text-sm text-gray-300">{stage.label}</span>
+                  <span className={`rounded-lg border px-2 py-1 text-xs font-bold ${
+                    (stage.avgDays ?? 0) >= SLA_STAGE_ALERT_DAYS
+                      ? 'border-red-800 bg-red-950/50 text-red-300'
+                      : 'border-gray-700 bg-gray-800 text-gray-400'
+                  }`}>
+                    {formatAverageDays(stage.avgDays)}
+                  </span>
+                </div>
+              ))}
+              {stageMetrics.every(stage => stage.count === 0) && (
+                <p className="rounded-2xl border border-gray-800 p-4 text-center text-sm text-gray-500">
+                  Nenhum lead nesse recorte.
+                </p>
+              )}
+            </div>
+          </section>
+
+          <section className="rounded-3xl border border-gray-800 bg-gray-900/70 p-5">
+            <h3 className="font-semibold text-white">Origem dos leads</h3>
+            <p className="mb-4 text-xs text-gray-500">Brasil x EUA no recorte selecionado</p>
+            <div className="grid gap-4">
+              {originMetrics.map(item => (
+                <MetricBar
+                  key={item.label}
+                  label={item.label}
+                  value={item.count}
+                  max={maxOriginCount}
+                  detail={`${item.count} leads`}
+                  color={item.label === 'Brasil' ? 'bg-green-500' : 'bg-blue-500'}
+                />
+              ))}
+            </div>
+          </section>
+
+          <section className="rounded-3xl border border-gray-800 bg-gray-900/70 p-5">
+            <h3 className="font-semibold text-white">Canais de venda</h3>
+            <p className="mb-4 text-xs text-gray-500">Volume por ultimo clique/campanha</p>
+            <div className="grid gap-4">
+              {channelMetrics.slice(0, 6).map(item => (
+                <MetricBar
+                  key={item.label}
+                  label={item.label}
+                  value={item.count}
+                  max={maxChannelCount}
+                  detail={`${item.count} leads`}
+                  color="bg-cyan-500"
+                />
+              ))}
+              {channelMetrics.length === 0 && (
+                <p className="rounded-2xl border border-gray-800 p-4 text-center text-sm text-gray-500">
+                  Nenhum canal no recorte.
+                </p>
+              )}
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function Page() {
+  const [activeView, setActiveView] = useState<AppView>('leads')
   const [leads, setLeads] = useState<Lead[]>([])
   const [filtered, setFiltered] = useState<Lead[]>([])
   const [selected, setSelected] = useState<Lead | null>(null)
@@ -761,7 +1159,9 @@ export default function Page() {
   const [dateTo, setDateTo] = useState('')
   const [loading, setLoading] = useState(true)
   const [responsaveis, setResponsaveis] = useState<Responsavel[]>([])
-  const [origemFilter, setOrigemFilter] = useState<'todos' | 'brasil' | 'eua'>('todos')
+  const [origemFilter, setOrigemFilter] = useState<OriginFilter>('todos')
+  const [dashboardOrigemFilter, setDashboardOrigemFilter] = useState<OriginFilter>('todos')
+  const [dashboardCanalFilter, setDashboardCanalFilter] = useState<string>('')
   const [stageFilter, setStageFilter] = useState<string>('')
   const [stageDropdownOpen, setStageDropdownOpen] = useState(false)
   const stageDropdownRef = useRef<HTMLTableCellElement>(null)
@@ -945,8 +1345,21 @@ export default function Page() {
   }
 
   return (
-    <div className="min-h-screen p-6">
-      {/* Header */}
+    <div className="min-h-screen bg-gray-950 text-gray-100">
+      <div className="flex min-h-screen flex-col lg:flex-row">
+        <AppSidebar activeView={activeView} onViewChange={setActiveView} totalLeads={leads.length} />
+        <main className="min-w-0 flex-1 p-4 sm:p-6 lg:p-8">
+          {activeView === 'dashboard' ? (
+            <DashboardView
+              leads={leads}
+              canalOptions={canalVendasOptions}
+              origemFilter={dashboardOrigemFilter}
+              onOrigemChange={setDashboardOrigemFilter}
+              canalFilter={dashboardCanalFilter}
+              onCanalChange={setDashboardCanalFilter}
+              loading={loading}
+            />
+          ) : (
       <div className="max-w-7xl mx-auto">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div>
@@ -1305,6 +1718,9 @@ export default function Page() {
           )}
         </div>
         <p className="text-gray-600 text-xs mt-3">{filtered.length} lead{filtered.length !== 1 ? 's' : ''} exibido{filtered.length !== 1 ? 's' : ''}</p>
+      </div>
+          )}
+        </main>
       </div>
 
       {selected && (
