@@ -84,6 +84,8 @@ const STAGES: { value: string; label: string; color: string; bg: string; border:
 const PERFIL_SORT_ORDER: Record<string, number> = { A: 0, B: 1, C: 2 }
 const STATUS_SORT_ORDER: Record<string, number> = { completed: 0, partial: 1 }
 const SEM_PERFIL_FILTER = '__sem_perfil'
+const SLA_STAGE_ALERT_DAYS = 2
+const DAY_IN_MS = 24 * 60 * 60 * 1000
 
 function formatPhone(phone: string | null): string | null {
   if (!phone) return null
@@ -105,6 +107,16 @@ function dateValue(dateStr: string | null) {
   if (!dateStr) return null
   const timestamp = new Date(dateStr).getTime()
   return Number.isNaN(timestamp) ? null : timestamp
+}
+
+function daysSince(dateStr: string | null) {
+  const timestamp = dateValue(dateStr)
+  if (timestamp === null) return null
+  return Math.max(0, Math.floor((Date.now() - timestamp) / DAY_IN_MS))
+}
+
+function getStageAgeDays(lead: Lead) {
+  return daysSince(lead.stage_date || lead.submit_date)
 }
 
 function firstCurrencyNumber(value: string | null) {
@@ -708,6 +720,37 @@ function ResponsavelDot({ nome }: { nome: string | null }) {
   )
 }
 
+function StageSlaBadge({ lead }: { lead: Lead }) {
+  const days = getStageAgeDays(lead)
+
+  if (days === null) {
+    return (
+      <span
+        title="Sem data para calcular SLA"
+        className="inline-flex h-7 min-w-9 items-center justify-center rounded-lg border border-gray-800 bg-gray-900/60 px-2 text-[11px] font-bold text-gray-600"
+      >
+        --
+      </span>
+    )
+  }
+
+  const expired = days >= SLA_STAGE_ALERT_DAYS
+  const dayLabel = days === 1 ? 'dia' : 'dias'
+
+  return (
+    <span
+      title={`Ha ${days} ${dayLabel} neste estagio. SLA: ${SLA_STAGE_ALERT_DAYS} dias.`}
+      className={`inline-flex h-7 min-w-9 items-center justify-center rounded-lg border px-2 text-[11px] font-bold ${
+        expired
+          ? 'border-red-700 bg-red-950/70 text-red-300'
+          : 'border-gray-700 bg-gray-800/70 text-gray-400'
+      }`}
+    >
+      {days}d
+    </span>
+  )
+}
+
 export default function Page() {
   const [leads, setLeads] = useState<Lead[]>([])
   const [filtered, setFiltered] = useState<Lead[]>([])
@@ -864,8 +907,12 @@ export default function Page() {
   }
 
   const handleStageChange = (leadId: number, stage: string) => {
-    const previous = leads.find(l => l.id === leadId)?.stage ?? 'nao_iniciado'
-    setLeads(prev => prev.map(l => l.id === leadId ? { ...l, stage } : l))
+    const previousLead = leads.find(l => l.id === leadId)
+    const previous = previousLead?.stage ?? 'nao_iniciado'
+    const previousStageDate = previousLead?.stage_date ?? null
+    const stageDate = new Date().toISOString()
+
+    setLeads(prev => prev.map(l => l.id === leadId ? { ...l, stage, stage_date: stageDate } : l))
     fetch(`/api/leads/${leadId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -873,7 +920,7 @@ export default function Page() {
     })
       .then(res => { if (!res.ok) throw new Error(`HTTP ${res.status}`) })
       .catch(() => {
-        setLeads(prev => prev.map(l => l.id === leadId ? { ...l, stage: previous } : l))
+        setLeads(prev => prev.map(l => l.id === leadId ? { ...l, stage: previous, stage_date: previousStageDate } : l))
         alert('Erro ao salvar estágio. Tente novamente.')
       })
   }
@@ -1221,17 +1268,20 @@ export default function Page() {
                         {(() => {
                           const s = STAGES.find(s => s.value === (lead.stage || 'nao_iniciado')) ?? STAGES[0]
                           return (
-                            <select
-                              value={lead.stage || 'nao_iniciado'}
-                              onChange={e => handleStageChange(lead.id, e.target.value)}
-                              className={`text-xs rounded-lg px-2 py-1 border cursor-pointer focus:outline-none focus:ring-1 focus:ring-indigo-500 ${s.bg} ${s.color} ${s.border}`}
-                            >
-                              {STAGES.map(st => (
-                                <option key={st.value} value={st.value} className="bg-gray-900 text-gray-100">
-                                  {st.label}
-                                </option>
-                              ))}
-                            </select>
+                            <div className="flex items-center gap-2">
+                              <select
+                                value={lead.stage || 'nao_iniciado'}
+                                onChange={e => handleStageChange(lead.id, e.target.value)}
+                                className={`text-xs rounded-lg px-2 py-1 border cursor-pointer focus:outline-none focus:ring-1 focus:ring-indigo-500 ${s.bg} ${s.color} ${s.border}`}
+                              >
+                                {STAGES.map(st => (
+                                  <option key={st.value} value={st.value} className="bg-gray-900 text-gray-100">
+                                    {st.label}
+                                  </option>
+                                ))}
+                              </select>
+                              <StageSlaBadge lead={lead} />
+                            </div>
                           )
                         })()}
                       </td>
