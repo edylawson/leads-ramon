@@ -89,7 +89,9 @@ perfil TEXT - 'A' | 'B' | 'C'
 origem TEXT - 'brasil' | 'eua'
 stage TEXT
 stage_date, submit_date, created_at
-canal_vendas TEXT
+origem TEXT (mercado: brasil | eua)
+origem_lead TEXT (origem/campanha/ultimo clique; antigo canal_vendas)
+canal_vendas TEXT (legado temporario; nao usar em novas features)
 responsavel_id FK -> responsaveis.id
 diagnostico_url TEXT
 ```

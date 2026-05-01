@@ -60,12 +60,12 @@ type Lead = {
   stage: string
   submit_date: string | null
   stage_date: string | null
-  canal_vendas: string | null
+  origem_lead: string | null
   responsavel_id: number | null
   responsavel_nome: string | null
 }
 
-type SortKey = 'date' | 'canal_vendas' | 'name' | 'perfil' | 'segmento' | 'faturamento' | 'stage' | 'status' | 'diagnostico'
+type SortKey = 'date' | 'origem_lead' | 'name' | 'perfil' | 'segmento' | 'faturamento' | 'stage' | 'status' | 'diagnostico'
 type SortDirection = 'asc' | 'desc'
 type AppView = 'leads' | 'dashboard'
 type OriginFilter = 'todos' | 'brasil' | 'eua'
@@ -86,7 +86,7 @@ const STAGES: { value: string; label: string; color: string; bg: string; border:
 const PERFIL_SORT_ORDER: Record<string, number> = { A: 0, B: 1, C: 2 }
 const STATUS_SORT_ORDER: Record<string, number> = { completed: 0, partial: 1 }
 const SEM_PERFIL_FILTER = '__sem_perfil'
-const SEM_CANAL_FILTER = '__sem_canal'
+const SEM_ORIGEM_LEAD_FILTER = '__sem_origem_lead'
 const SLA_STAGE_ALERT_DAYS = 2
 const DAY_IN_MS = 24 * 60 * 60 * 1000
 const FINAL_STAGES = new Set(['ganho', 'perdido'])
@@ -149,14 +149,14 @@ function getOriginLabel(origem: string) {
   return origem || 'Sem origem'
 }
 
-function getChannelLabel(channel: string | null) {
-  return channel || 'Sem canal'
+function getLeadOriginLabel(origin: string | null) {
+  return origin || 'Sem origem'
 }
 
-function matchesSalesChannel(lead: Lead, channelFilter: string) {
-  if (!channelFilter) return true
-  if (channelFilter === SEM_CANAL_FILTER) return !lead.canal_vendas
-  return lead.canal_vendas === channelFilter
+function matchesLeadOrigin(lead: Lead, originFilter: string) {
+  if (!originFilter) return true
+  if (originFilter === SEM_ORIGEM_LEAD_FILTER) return !lead.origem_lead
+  return lead.origem_lead === originFilter
 }
 
 function firstCurrencyNumber(value: string | null) {
@@ -169,7 +169,7 @@ function firstCurrencyNumber(value: string | null) {
 
 function getSortValue(lead: Lead, key: SortKey): string | number | null {
   if (key === 'date') return dateValue(lead.submit_date || lead.stage_date)
-  if (key === 'canal_vendas') return lead.canal_vendas?.toLowerCase() ?? null
+  if (key === 'origem_lead') return lead.origem_lead?.toLowerCase() ?? null
   if (key === 'name') return getLeadName(lead).toLowerCase() || null
   if (key === 'perfil') {
     const code = perfilCode(lead.perfil)
@@ -847,7 +847,7 @@ function AppSidebar({ activeView, onViewChange, totalLeads }: {
       <div className="mt-5 hidden rounded-2xl border border-gray-800 bg-gray-900/50 p-3 lg:block">
         <p className="text-xs font-semibold text-gray-300">Atalho de leitura</p>
         <p className="mt-1 text-xs leading-relaxed text-gray-500">
-          Use o dashboard para responder rapido quantos leads existem, onde travaram e quais canais estao trazendo volume.
+          Use o dashboard para responder rapido quantos leads existem, onde travaram e quais origens estao trazendo volume.
         </p>
       </div>
     </aside>
@@ -921,18 +921,18 @@ function MetricBar({ label, value, max, detail, color = 'bg-indigo-500' }: {
   )
 }
 
-function DashboardView({ leads, canalOptions, origemFilter, onOrigemChange, canalFilter, onCanalChange, loading }: {
+function DashboardView({ leads, origemLeadOptions, mercadoFilter, onMercadoChange, origemLeadFilter, onOrigemLeadChange, loading }: {
   leads: Lead[]
-  canalOptions: string[]
-  origemFilter: OriginFilter
-  onOrigemChange: (value: OriginFilter) => void
-  canalFilter: string
-  onCanalChange: (value: string) => void
+  origemLeadOptions: string[]
+  mercadoFilter: OriginFilter
+  onMercadoChange: (value: OriginFilter) => void
+  origemLeadFilter: string
+  onOrigemLeadChange: (value: string) => void
   loading: boolean
 }) {
   const dashboardLeads = leads.filter(lead => {
-    const matchesOrigin = origemFilter === 'todos' || lead.origem === origemFilter
-    return matchesOrigin && matchesSalesChannel(lead, canalFilter)
+    const matchesMarket = mercadoFilter === 'todos' || lead.origem === mercadoFilter
+    return matchesMarket && matchesLeadOrigin(lead, origemLeadFilter)
   })
   const activeLeads = dashboardLeads.filter(lead => !FINAL_STAGES.has(getLeadStage(lead)))
   const won = dashboardLeads.filter(lead => getLeadStage(lead) === 'ganho').length
@@ -966,17 +966,17 @@ function DashboardView({ leads, canalOptions, origemFilter, onOrigemChange, cana
   })
   const maxOriginCount = Math.max(...originMetrics.map(item => item.count), 1)
 
-  const channelMetrics = Array.from(
+  const leadOriginMetrics = Array.from(
     dashboardLeads.reduce((map, lead) => {
-      const label = getChannelLabel(lead.canal_vendas)
+      const label = getLeadOriginLabel(lead.origem_lead)
       map.set(label, (map.get(label) ?? 0) + 1)
       return map
     }, new Map<string, number>())
   )
     .map(([label, count]) => ({ label, count }))
     .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, 'pt-BR'))
-  const maxChannelCount = Math.max(...channelMetrics.map(item => item.count), 1)
-  const hasNoChannel = leads.some(lead => !lead.canal_vendas)
+  const maxLeadOriginCount = Math.max(...leadOriginMetrics.map(item => item.count), 1)
+  const hasNoLeadOrigin = leads.some(lead => !lead.origem_lead)
 
   if (loading) {
     return (
@@ -993,7 +993,7 @@ function DashboardView({ leads, canalOptions, origemFilter, onOrigemChange, cana
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-indigo-300">Dashboard</p>
           <h2 className="mt-2 text-3xl font-bold text-white">Visao geral comercial</h2>
           <p className="mt-2 max-w-2xl text-sm text-gray-500">
-            Resumo rapido para acompanhar volume, origem, canais, ganhos, perdas e tempo parado em cada etapa.
+            Resumo rapido para acompanhar volume, mercado, origem, ganhos, perdas e tempo parado em cada etapa.
           </p>
         </div>
         <div className="rounded-2xl border border-gray-800 bg-gray-900/70 px-4 py-3 text-sm text-gray-400">
@@ -1013,9 +1013,9 @@ function DashboardView({ leads, canalOptions, origemFilter, onOrigemChange, cana
               ] as const).map(option => (
                 <DashboardFilterButton
                   key={option.value}
-                  active={origemFilter === option.value}
+                  active={mercadoFilter === option.value}
                   label={option.label}
-                  onClick={() => onOrigemChange(option.value)}
+                  onClick={() => onMercadoChange(option.value)}
                 />
               ))}
             </div>
@@ -1023,16 +1023,16 @@ function DashboardView({ leads, canalOptions, origemFilter, onOrigemChange, cana
 
           <div className="min-w-full xl:min-w-[320px]">
             <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-gray-500">
-              Canal de vendas
+              Origem
             </label>
             <select
-              value={canalFilter}
-              onChange={event => onCanalChange(event.target.value)}
+              value={origemLeadFilter}
+              onChange={event => onOrigemLeadChange(event.target.value)}
               className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-gray-200 outline-none transition-colors focus:border-indigo-500"
             >
-              <option value="">Todos os canais</option>
-              {hasNoChannel && <option value={SEM_CANAL_FILTER}>Sem canal</option>}
-              {canalOptions.map(option => (
+              <option value="">Todas as origens</option>
+              {hasNoLeadOrigin && <option value={SEM_ORIGEM_LEAD_FILTER}>Sem origem</option>}
+              {origemLeadOptions.map(option => (
                 <option key={option} value={option}>{option}</option>
               ))}
             </select>
@@ -1105,7 +1105,7 @@ function DashboardView({ leads, canalOptions, origemFilter, onOrigemChange, cana
           </section>
 
           <section className="rounded-3xl border border-gray-800 bg-gray-900/70 p-5">
-            <h3 className="font-semibold text-white">Origem dos leads</h3>
+            <h3 className="font-semibold text-white">Mercado dos leads</h3>
             <p className="mb-4 text-xs text-gray-500">Brasil x EUA no recorte selecionado</p>
             <div className="grid gap-4">
               {originMetrics.map(item => (
@@ -1122,22 +1122,22 @@ function DashboardView({ leads, canalOptions, origemFilter, onOrigemChange, cana
           </section>
 
           <section className="rounded-3xl border border-gray-800 bg-gray-900/70 p-5">
-            <h3 className="font-semibold text-white">Canais de venda</h3>
+            <h3 className="font-semibold text-white">Origem dos leads</h3>
             <p className="mb-4 text-xs text-gray-500">Volume por ultimo clique/campanha</p>
             <div className="grid gap-4">
-              {channelMetrics.slice(0, 6).map(item => (
+              {leadOriginMetrics.slice(0, 6).map(item => (
                 <MetricBar
                   key={item.label}
                   label={item.label}
                   value={item.count}
-                  max={maxChannelCount}
+                  max={maxLeadOriginCount}
                   detail={`${item.count} leads`}
                   color="bg-cyan-500"
                 />
               ))}
-              {channelMetrics.length === 0 && (
+              {leadOriginMetrics.length === 0 && (
                 <p className="rounded-2xl border border-gray-800 p-4 text-center text-sm text-gray-500">
-                  Nenhum canal no recorte.
+                  Nenhuma origem no recorte.
                 </p>
               )}
             </div>
@@ -1160,8 +1160,8 @@ export default function Page() {
   const [loading, setLoading] = useState(true)
   const [responsaveis, setResponsaveis] = useState<Responsavel[]>([])
   const [origemFilter, setOrigemFilter] = useState<OriginFilter>('todos')
-  const [dashboardOrigemFilter, setDashboardOrigemFilter] = useState<OriginFilter>('todos')
-  const [dashboardCanalFilter, setDashboardCanalFilter] = useState<string>('')
+  const [dashboardMercadoFilter, setDashboardMercadoFilter] = useState<OriginFilter>('todos')
+  const [dashboardOrigemLeadFilter, setDashboardOrigemLeadFilter] = useState<string>('')
   const [stageFilter, setStageFilter] = useState<string>('')
   const [stageDropdownOpen, setStageDropdownOpen] = useState(false)
   const stageDropdownRef = useRef<HTMLTableCellElement>(null)
@@ -1171,9 +1171,9 @@ export default function Page() {
   const [faturamentoFilter, setFaturamentoFilter] = useState<string>('')
   const [faturamentoDropdownOpen, setFaturamentoDropdownOpen] = useState(false)
   const faturamentoDropdownRef = useRef<HTMLTableCellElement>(null)
-  const [canalVendasFilter, setCanalVendasFilter] = useState<string>('')
-  const [canalVendasDropdownOpen, setCanalVendasDropdownOpen] = useState(false)
-  const canalVendasDropdownRef = useRef<HTMLTableCellElement>(null)
+  const [origemLeadFilter, setOrigemLeadFilter] = useState<string>('')
+  const [origemLeadDropdownOpen, setOrigemLeadDropdownOpen] = useState(false)
+  const origemLeadDropdownRef = useRef<HTMLTableCellElement>(null)
   const [sortKey, setSortKey] = useState<SortKey | null>('date')
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
 
@@ -1221,13 +1221,13 @@ export default function Page() {
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (canalVendasDropdownRef.current && !canalVendasDropdownRef.current.contains(e.target as Node)) {
-        setCanalVendasDropdownOpen(false)
+      if (origemLeadDropdownRef.current && !origemLeadDropdownRef.current.contains(e.target as Node)) {
+        setOrigemLeadDropdownOpen(false)
       }
     }
-    if (canalVendasDropdownOpen) document.addEventListener('mousedown', handleClickOutside)
+    if (origemLeadDropdownOpen) document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [canalVendasDropdownOpen])
+  }, [origemLeadDropdownOpen])
 
   useEffect(() => {
     let result = leads
@@ -1240,11 +1240,11 @@ export default function Page() {
       result = result.filter(l => perfilCode(l.perfil) === perfilFilter)
     }
     if (faturamentoFilter) result = result.filter(l => l.faturamento_anual === faturamentoFilter)
-    if (canalVendasFilter) result = result.filter(l => l.canal_vendas === canalVendasFilter)
+    if (origemLeadFilter) result = result.filter(l => l.origem_lead === origemLeadFilter)
     if (search.trim()) {
       const q = search.toLowerCase()
       result = result.filter(l =>
-        [l.first_name, l.last_name, l.empresa, l.email, l.canal_vendas].some(v => v?.toLowerCase().includes(q))
+        [l.first_name, l.last_name, l.empresa, l.email, l.origem_lead].some(v => v?.toLowerCase().includes(q))
       )
     }
     if (dateFrom) {
@@ -1263,7 +1263,7 @@ export default function Page() {
       result = [...result].sort((a, b) => compareLeads(a, b, sortKey, sortDirection))
     }
     setFiltered(result)
-  }, [leads, search, filter, origemFilter, stageFilter, perfilFilter, faturamentoFilter, canalVendasFilter, dateFrom, dateTo, sortKey, sortDirection])
+  }, [leads, search, filter, origemFilter, stageFilter, perfilFilter, faturamentoFilter, origemLeadFilter, dateFrom, dateTo, sortKey, sortDirection])
 
   const faturamentoOptions = Array.from(
     new Set(leads.map(l => l.faturamento_anual).filter((value): value is string => Boolean(value)))
@@ -1274,8 +1274,8 @@ export default function Page() {
     return a.localeCompare(b, 'pt-BR', { numeric: true, sensitivity: 'base' })
   })
 
-  const canalVendasOptions = Array.from(
-    new Set(leads.map(l => l.canal_vendas).filter((value): value is string => Boolean(value)))
+  const origemLeadOptions = Array.from(
+    new Set(leads.map(l => l.origem_lead).filter((value): value is string => Boolean(value)))
   ).sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true, sensitivity: 'base' }))
 
   const total = filtered.length
@@ -1352,11 +1352,11 @@ export default function Page() {
           {activeView === 'dashboard' ? (
             <DashboardView
               leads={leads}
-              canalOptions={canalVendasOptions}
-              origemFilter={dashboardOrigemFilter}
-              onOrigemChange={setDashboardOrigemFilter}
-              canalFilter={dashboardCanalFilter}
-              onCanalChange={setDashboardCanalFilter}
+              origemLeadOptions={origemLeadOptions}
+              mercadoFilter={dashboardMercadoFilter}
+              onMercadoChange={setDashboardMercadoFilter}
+              origemLeadFilter={dashboardOrigemLeadFilter}
+              onOrigemLeadChange={setDashboardOrigemLeadFilter}
               loading={loading}
             />
           ) : (
@@ -1466,34 +1466,34 @@ export default function Page() {
                   <th className="text-left px-4 py-3 hidden sm:table-cell">
                     <HeaderControl label="Data" column="date" activeSort={sortKey} direction={sortDirection} onSort={handleSort} />
                   </th>
-                  <th ref={canalVendasDropdownRef} className="text-left px-4 py-3 hidden md:table-cell relative">
+                  <th ref={origemLeadDropdownRef} className="text-left px-4 py-3 hidden md:table-cell relative">
                     <HeaderControl
-                      label="Canal de vendas"
-                      column="canal_vendas"
+                      label="Origem"
+                      column="origem_lead"
                       activeSort={sortKey}
                       direction={sortDirection}
                       onSort={handleSort}
-                      onFilterClick={() => setCanalVendasDropdownOpen(prev => !prev)}
-                      filterActive={Boolean(canalVendasFilter)}
-                      filterOpen={canalVendasDropdownOpen}
+                      onFilterClick={() => setOrigemLeadDropdownOpen(prev => !prev)}
+                      filterActive={Boolean(origemLeadFilter)}
+                      filterOpen={origemLeadDropdownOpen}
                     />
-                    {canalVendasDropdownOpen && (
+                    {origemLeadDropdownOpen && (
                       <div className="absolute top-full left-0 z-30 mt-1 bg-gray-900 border border-gray-700 rounded-lg shadow-xl py-1 min-w-[260px] max-h-72 overflow-y-auto">
                         <button
-                          onClick={() => { setCanalVendasFilter(''); setCanalVendasDropdownOpen(false) }}
-                          className={`w-full text-left px-3 py-1.5 text-xs normal-case tracking-normal hover:bg-gray-800 transition-colors flex items-center gap-2 ${!canalVendasFilter ? 'text-indigo-400 font-semibold' : 'text-gray-400'}`}
+                          onClick={() => { setOrigemLeadFilter(''); setOrigemLeadDropdownOpen(false) }}
+                          className={`w-full text-left px-3 py-1.5 text-xs normal-case tracking-normal hover:bg-gray-800 transition-colors flex items-center gap-2 ${!origemLeadFilter ? 'text-indigo-400 font-semibold' : 'text-gray-400'}`}
                         >
-                          {!canalVendasFilter && <span className="text-indigo-400">✓</span>}
-                          Todos os canais
+                          {!origemLeadFilter && <span className="text-indigo-400">✓</span>}
+                          Todas as origens
                         </button>
                         <div className="border-t border-gray-800 my-1" />
-                        {canalVendasOptions.map(option => (
+                        {origemLeadOptions.map(option => (
                           <button
                             key={option}
-                            onClick={() => { setCanalVendasFilter(option); setCanalVendasDropdownOpen(false) }}
-                            className={`w-full text-left px-3 py-1.5 text-xs normal-case tracking-normal hover:bg-gray-800 transition-colors flex items-center gap-2 ${canalVendasFilter === option ? 'text-indigo-400 font-semibold' : 'text-gray-400'}`}
+                            onClick={() => { setOrigemLeadFilter(option); setOrigemLeadDropdownOpen(false) }}
+                            className={`w-full text-left px-3 py-1.5 text-xs normal-case tracking-normal hover:bg-gray-800 transition-colors flex items-center gap-2 ${origemLeadFilter === option ? 'text-indigo-400 font-semibold' : 'text-gray-400'}`}
                           >
-                            {canalVendasFilter === option && <span>✓</span>}
+                            {origemLeadFilter === option && <span>✓</span>}
                             {option}
                           </button>
                         ))}
@@ -1644,8 +1644,8 @@ export default function Page() {
                     >
                       <td className="px-4 py-3 text-gray-400 hidden sm:table-cell whitespace-nowrap">{formatDate(lead.submit_date || lead.stage_date)}</td>
                       <td className="px-4 py-3 text-gray-400 hidden md:table-cell">
-                        <span className="block max-w-[170px] truncate" title={lead.canal_vendas || undefined}>
-                          {lead.canal_vendas || '—'}
+                        <span className="block max-w-[170px] truncate" title={lead.origem_lead || undefined}>
+                          {lead.origem_lead || '—'}
                         </span>
                       </td>
                       <td className="px-4 py-3">

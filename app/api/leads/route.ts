@@ -58,7 +58,7 @@ export async function GET() {
         l.stage,
         l.submit_date,
         l.stage_date,
-        l.canal_vendas,
+        l.origem_lead,
         l.created_at,
         l.responsavel_id,
         r.nome AS responsavel_nome,
