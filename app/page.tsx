@@ -691,6 +691,9 @@ export default function Page() {
   const [perfilFilter, setPerfilFilter] = useState<string>('')
   const [perfilDropdownOpen, setPerfilDropdownOpen] = useState(false)
   const perfilDropdownRef = useRef<HTMLTableCellElement>(null)
+  const [faturamentoFilter, setFaturamentoFilter] = useState<string>('')
+  const [faturamentoDropdownOpen, setFaturamentoDropdownOpen] = useState(false)
+  const faturamentoDropdownRef = useRef<HTMLTableCellElement>(null)
   const [sortKey, setSortKey] = useState<SortKey | null>('date')
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
 
@@ -727,11 +730,22 @@ export default function Page() {
   }, [perfilDropdownOpen])
 
   useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (faturamentoDropdownRef.current && !faturamentoDropdownRef.current.contains(e.target as Node)) {
+        setFaturamentoDropdownOpen(false)
+      }
+    }
+    if (faturamentoDropdownOpen) document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [faturamentoDropdownOpen])
+
+  useEffect(() => {
     let result = leads
     if (origemFilter !== 'todos') result = result.filter(l => l.origem === origemFilter)
     if (filter !== 'all') result = result.filter(l => l.response_type === filter)
     if (stageFilter) result = result.filter(l => (l.stage || 'nao_iniciado') === stageFilter)
     if (perfilFilter) result = result.filter(l => l.perfil === perfilFilter)
+    if (faturamentoFilter) result = result.filter(l => l.faturamento_anual === faturamentoFilter)
     if (search.trim()) {
       const q = search.toLowerCase()
       result = result.filter(l =>
@@ -754,7 +768,16 @@ export default function Page() {
       result = [...result].sort((a, b) => compareLeads(a, b, sortKey, sortDirection))
     }
     setFiltered(result)
-  }, [leads, search, filter, origemFilter, stageFilter, perfilFilter, dateFrom, dateTo, sortKey, sortDirection])
+  }, [leads, search, filter, origemFilter, stageFilter, perfilFilter, faturamentoFilter, dateFrom, dateTo, sortKey, sortDirection])
+
+  const faturamentoOptions = Array.from(
+    new Set(leads.map(l => l.faturamento_anual).filter((value): value is string => Boolean(value)))
+  ).sort((a, b) => {
+    const aValue = firstCurrencyNumber(a)
+    const bValue = firstCurrencyNumber(b)
+    if (aValue !== null && bValue !== null && aValue !== bValue) return aValue - bValue
+    return a.localeCompare(b, 'pt-BR', { numeric: true, sensitivity: 'base' })
+  })
 
   const total = filtered.length
   const completed = filtered.filter(l => l.response_type === 'completed').length
@@ -805,8 +828,7 @@ export default function Page() {
       <div className="max-w-7xl mx-auto">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div>
-            <h1 className="text-2xl font-bold text-white">Leads — Agência Brasil</h1>
-            <p className="text-gray-500 text-sm mt-1">Formulário de diagnóstico de marketing</p>
+            <h1 className="text-2xl font-bold text-white">LEADS HIGH DIGITAL</h1>
           </div>
           <div className="flex gap-3">
             <Stat label="Total" value={total} />
@@ -944,8 +966,39 @@ export default function Page() {
                   <th className="text-left px-4 py-3 hidden lg:table-cell">
                     <HeaderControl label="Segmento" column="segmento" activeSort={sortKey} direction={sortDirection} onSort={handleSort} />
                   </th>
-                  <th className="text-left px-4 py-3 hidden lg:table-cell">
-                    <HeaderControl label="Faturamento" column="faturamento" activeSort={sortKey} direction={sortDirection} onSort={handleSort} />
+                  <th ref={faturamentoDropdownRef} className="text-left px-4 py-3 hidden lg:table-cell relative">
+                    <HeaderControl
+                      label="Faturamento"
+                      column="faturamento"
+                      activeSort={sortKey}
+                      direction={sortDirection}
+                      onSort={handleSort}
+                      onFilterClick={() => setFaturamentoDropdownOpen(prev => !prev)}
+                      filterActive={Boolean(faturamentoFilter)}
+                      filterOpen={faturamentoDropdownOpen}
+                    />
+                    {faturamentoDropdownOpen && (
+                      <div className="absolute top-full left-0 z-30 mt-1 bg-gray-900 border border-gray-700 rounded-lg shadow-xl py-1 min-w-[260px] max-h-72 overflow-y-auto">
+                        <button
+                          onClick={() => { setFaturamentoFilter(''); setFaturamentoDropdownOpen(false) }}
+                          className={`w-full text-left px-3 py-1.5 text-xs normal-case tracking-normal hover:bg-gray-800 transition-colors flex items-center gap-2 ${!faturamentoFilter ? 'text-indigo-400 font-semibold' : 'text-gray-400'}`}
+                        >
+                          {!faturamentoFilter && <span className="text-indigo-400">✓</span>}
+                          Todos os faturamentos
+                        </button>
+                        <div className="border-t border-gray-800 my-1" />
+                        {faturamentoOptions.map(option => (
+                          <button
+                            key={option}
+                            onClick={() => { setFaturamentoFilter(option); setFaturamentoDropdownOpen(false) }}
+                            className={`w-full text-left px-3 py-1.5 text-xs normal-case tracking-normal hover:bg-gray-800 transition-colors flex items-center gap-2 ${faturamentoFilter === option ? 'text-indigo-400 font-semibold' : 'text-gray-400'}`}
+                          >
+                            {faturamentoFilter === option && <span>✓</span>}
+                            {option}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </th>
                   <th ref={stageDropdownRef} className="text-left px-4 py-3 hidden md:table-cell relative">
                     <HeaderControl
