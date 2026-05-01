@@ -136,23 +136,21 @@ function urgencyColor(urgencia: string | null) {
   return 'text-gray-400'
 }
 
-function PerfilBadge({ perfil, size = 'sm' }: { perfil: string | null; size?: 'sm' | 'md' }) {
+function PerfilBadge({ perfil }: { perfil: string | null; size?: 'sm' | 'md' }) {
   if (!perfil) return null
-  // Extrai só o código (A+, A, B, C) para exibição compacta
   const code = perfil.startsWith('A+') ? 'A+' : perfil.startsWith('A') ? 'A' : perfil.startsWith('B') ? 'B' : 'C'
   const styles: Record<string, string> = {
     'A+': 'bg-violet-900/50 text-violet-300 border-violet-700',
-    'A':  'bg-blue-900/50 text-blue-300 border-blue-700',
+    'A':  'bg-green-900/50 text-green-300 border-green-700',
     'B':  'bg-amber-900/50 text-amber-300 border-amber-700',
-    'C':  'bg-gray-800/80 text-gray-400 border-gray-700',
+    'C':  'bg-red-900/50 text-red-400 border-red-800',
   }
-  const label = size === 'md' ? perfil : code
   return (
     <span
       className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold border ${styles[code]}`}
       title={perfil}
     >
-      {label}
+      {code}
     </span>
   )
 }
@@ -475,7 +473,7 @@ function Modal({ lead, onClose, onDiagnosticoFound, responsaveis, onResponsavelC
             {lead.perfil && (
               <div className="flex gap-2 items-center">
                 <span className="text-gray-500 shrink-0">Perfil:</span>
-                <PerfilBadge perfil={lead.perfil} size="md" />
+                <PerfilBadge perfil={lead.perfil} />
               </div>
             )}
             <Row label="Urgência" value={lead.urgencia} valueClass={urgencyColor(lead.urgencia)} />
@@ -794,10 +792,10 @@ export default function Page() {
                         </button>
                         <div className="border-t border-gray-800 my-1" />
                         {[
-                          { value: 'A+ (High Ticket - Livro/Método)',     label: 'A+ — High Ticket',    cls: 'text-violet-300' },
-                          { value: 'A (Premium - Agência ou Ascensão)',   label: 'A — Premium',          cls: 'text-blue-300'   },
-                          { value: 'B (Core Agência - Ticket R$ 3.500)', label: 'B — Core Agência',     cls: 'text-amber-300'  },
-                          { value: 'C (Baixo Budget - Nutrição)',         label: 'C — Baixo Budget',     cls: 'text-gray-400'   },
+                          { value: 'A+', label: 'A+', cls: 'text-violet-300' },
+                          { value: 'A',  label: 'A',  cls: 'text-green-300'  },
+                          { value: 'B',  label: 'B',  cls: 'text-amber-300'  },
+                          { value: 'C',  label: 'C',  cls: 'text-red-400'    },
                         ].map(p => (
                           <button
                             key={p.value}
@@ -889,7 +887,7 @@ export default function Page() {
                         <CopyEmail email={lead.email} />
                       </td>
                       <td className="px-4 py-3 hidden md:table-cell">
-                        <PerfilBadge perfil={lead.perfil} size="sm" />
+                        <PerfilBadge perfil={lead.perfil} />
                       </td>
                       <td className="px-4 py-3 text-gray-400 hidden lg:table-cell">{lead.tipo_negocio || '—'}</td>
                       <td className="px-4 py-3 text-gray-400 hidden lg:table-cell">{lead.faturamento_anual || '—'}</td>

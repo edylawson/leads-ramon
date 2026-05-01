@@ -53,7 +53,16 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
   try {
     const body = await req.json()
-    const { stage, responsavel_id } = body
+    const { stage, responsavel_id, perfil } = body
+
+    // Atualiza perfil
+    if (perfil !== undefined) {
+      const VALID_PERFIS = ['A+', 'A', 'B', 'C']
+      if (perfil !== null && !VALID_PERFIS.includes(perfil)) {
+        return NextResponse.json({ error: 'Perfil inválido' }, { status: 400 })
+      }
+      await pool.query('UPDATE leads SET perfil = $1 WHERE id = $2', [perfil || null, id])
+    }
 
     // Atualiza estágio
     if (stage !== undefined) {
