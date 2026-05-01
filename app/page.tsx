@@ -64,6 +64,9 @@ type Lead = {
   responsavel_nome: string | null
 }
 
+type SortKey = 'date' | 'name' | 'perfil' | 'segmento' | 'faturamento' | 'stage' | 'responsavel' | 'status' | 'diagnostico'
+type SortDirection = 'asc' | 'desc'
+
 const STAGES: { value: string; label: string; color: string; bg: string; border: string }[] = [
   { value: 'nao_iniciado',       label: 'Não iniciado',       color: 'text-gray-400',   bg: 'bg-gray-800/60',     border: 'border-gray-700' },
   { value: 'tentando_contato',   label: 'Tentando contato',   color: 'text-cyan-400',   bg: 'bg-cyan-900/30',     border: 'border-cyan-800' },
@@ -77,9 +80,63 @@ const STAGES: { value: string; label: string; color: string; bg: string; border:
   { value: 'perdido',            label: 'Perdido',            color: 'text-red-400',    bg: 'bg-red-900/30',      border: 'border-red-800' },
 ]
 
+const PERFIL_SORT_ORDER: Record<string, number> = { 'A+': 0, A: 1, B: 2, C: 3 }
+const STATUS_SORT_ORDER: Record<string, number> = { completed: 0, partial: 1 }
+
 function formatPhone(phone: string | null): string | null {
   if (!phone) return null
   return phone.replace(/\D/g, '')
+}
+
+function getLeadName(lead: Lead) {
+  return [lead.first_name, lead.last_name].filter(Boolean).join(' ')
+}
+
+function dateValue(dateStr: string | null) {
+  if (!dateStr) return null
+  const timestamp = new Date(dateStr).getTime()
+  return Number.isNaN(timestamp) ? null : timestamp
+}
+
+function firstCurrencyNumber(value: string | null) {
+  if (!value) return null
+  const match = value.match(/[0-9][0-9.,]*/)
+  if (!match) return null
+  const number = Number(match[0].replace(/\D/g, ''))
+  return Number.isNaN(number) ? null : number
+}
+
+function getSortValue(lead: Lead, key: SortKey): string | number | null {
+  if (key === 'date') return dateValue(lead.submit_date || lead.stage_date)
+  if (key === 'name') return getLeadName(lead).toLowerCase() || null
+  if (key === 'perfil') return lead.perfil ? PERFIL_SORT_ORDER[lead.perfil] ?? 99 : null
+  if (key === 'segmento') return lead.tipo_negocio?.toLowerCase() ?? null
+  if (key === 'faturamento') return firstCurrencyNumber(lead.faturamento_anual)
+  if (key === 'stage') return STAGES.findIndex(s => s.value === (lead.stage || 'nao_iniciado'))
+  if (key === 'responsavel') return lead.responsavel_nome?.toLowerCase() ?? null
+  if (key === 'status') return STATUS_SORT_ORDER[lead.response_type] ?? null
+  if (key === 'diagnostico') return lead.diagnostico_url ? 0 : 1
+  return null
+}
+
+function compareLeads(a: Lead, b: Lead, key: SortKey, direction: SortDirection) {
+  const aValue = getSortValue(a, key)
+  const bValue = getSortValue(b, key)
+  const aEmpty = aValue === null || aValue === ''
+  const bEmpty = bValue === null || bValue === ''
+
+  if (aEmpty && bEmpty) return 0
+  if (aEmpty) return 1
+  if (bEmpty) return -1
+
+  let result = 0
+  if (typeof aValue === 'number' && typeof bValue === 'number') {
+    result = aValue - bValue
+  } else {
+    result = String(aValue).localeCompare(String(bValue), 'pt-BR', { numeric: true, sensitivity: 'base' })
+  }
+
+  return direction === 'asc' ? result : -result
 }
 
 const DORES: { key: keyof Lead; label: string }[] = [
@@ -559,6 +616,64 @@ function Pill({ text, color }: { text: string; color: 'green' | 'blue' | 'yellow
   )
 }
 
+function SortButton({ column, activeSort, direction, onSort }: {
+  column: SortKey
+  activeSort: SortKey | null
+  direction: SortDirection
+  onSort: (column: SortKey) => void
+}) {
+  const active = activeSort === column
+  return (
+    <button
+      type="button"
+      onClick={e => { e.stopPropagation(); onSort(column) }}
+      title={active && direction === 'asc' ? 'Ordenar desc' : 'Ordenar asc'}
+      className={`inline-flex h-5 w-5 items-center justify-center rounded border transition-colors ${
+        active
+          ? 'border-indigo-500/60 bg-indigo-500/10 text-indigo-300'
+          : 'border-transparent text-gray-600 hover:border-gray-700 hover:bg-gray-800 hover:text-gray-300'
+      }`}
+    >
+      <svg className="h-3.5 w-3.5" viewBox="0 0 10 14" aria-hidden="true">
+        <path d="M5 1 1.5 5h7L5 1Z" className={active && direction === 'asc' ? 'fill-indigo-300' : 'fill-current'} />
+        <path d="M5 13 8.5 9h-7L5 13Z" className={active && direction === 'desc' ? 'fill-indigo-300' : 'fill-current'} />
+      </svg>
+    </button>
+  )
+}
+
+function HeaderControl({ label, column, activeSort, direction, onSort, onFilterClick, filterActive, filterOpen }: {
+  label: string
+  column: SortKey
+  activeSort: SortKey | null
+  direction: SortDirection
+  onSort: (column: SortKey) => void
+  onFilterClick?: () => void
+  filterActive?: boolean
+  filterOpen?: boolean
+}) {
+  const labelClass = `flex items-center gap-1.5 uppercase tracking-wider transition-colors ${
+    filterActive ? 'text-indigo-400' : 'hover:text-white'
+  }`
+
+  return (
+    <div className="flex items-center gap-1.5">
+      {onFilterClick ? (
+        <button type="button" onClick={onFilterClick} className={labelClass}>
+          {label}
+          {filterActive && <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 inline-block shrink-0" />}
+          <svg className={`w-3 h-3 opacity-60 transition-transform ${filterOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+      ) : (
+        <span className="uppercase tracking-wider">{label}</span>
+      )}
+      <SortButton column={column} activeSort={activeSort} direction={direction} onSort={onSort} />
+    </div>
+  )
+}
+
 export default function Page() {
   const [leads, setLeads] = useState<Lead[]>([])
   const [filtered, setFiltered] = useState<Lead[]>([])
@@ -576,6 +691,8 @@ export default function Page() {
   const [perfilFilter, setPerfilFilter] = useState<string>('')
   const [perfilDropdownOpen, setPerfilDropdownOpen] = useState(false)
   const perfilDropdownRef = useRef<HTMLTableCellElement>(null)
+  const [sortKey, setSortKey] = useState<SortKey | null>('date')
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
 
   useEffect(() => {
     fetch('/api/leads')
@@ -633,12 +750,24 @@ export default function Page() {
         return d && new Date(d) <= new Date(dateTo + 'T23:59:59')
       })
     }
+    if (sortKey) {
+      result = [...result].sort((a, b) => compareLeads(a, b, sortKey, sortDirection))
+    }
     setFiltered(result)
-  }, [leads, search, filter, origemFilter, stageFilter, perfilFilter, dateFrom, dateTo])
+  }, [leads, search, filter, origemFilter, stageFilter, perfilFilter, dateFrom, dateTo, sortKey, sortDirection])
 
   const total = filtered.length
   const completed = filtered.filter(l => l.response_type === 'completed').length
   const partial = filtered.filter(l => l.response_type === 'partial').length
+
+  const handleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')
+      return
+    }
+    setSortKey(key)
+    setSortDirection('asc')
+  }
 
   const handleStageChange = (leadId: number, stage: string) => {
     const previous = leads.find(l => l.id === leadId)?.stage ?? 'nao_iniciado'
@@ -766,22 +895,24 @@ export default function Page() {
           ) : (
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-gray-800 text-xs text-gray-500 uppercase tracking-wider">
-                  <th className="text-left px-4 py-3 hidden sm:table-cell">Data</th>
-                  <th className="text-left px-4 py-3">Nome</th>
+                <tr className="border-b border-gray-800 text-xs text-gray-500">
+                  <th className="text-left px-4 py-3 hidden sm:table-cell">
+                    <HeaderControl label="Data" column="date" activeSort={sortKey} direction={sortDirection} onSort={handleSort} />
+                  </th>
+                  <th className="text-left px-4 py-3">
+                    <HeaderControl label="Nome" column="name" activeSort={sortKey} direction={sortDirection} onSort={handleSort} />
+                  </th>
                   <th ref={perfilDropdownRef} className="text-left px-4 py-3 hidden md:table-cell relative">
-                    <button
-                      onClick={() => setPerfilDropdownOpen(prev => !prev)}
-                      className={`flex items-center gap-1.5 uppercase tracking-wider hover:text-white transition-colors ${perfilFilter ? 'text-indigo-400' : ''}`}
-                    >
-                      Perfil
-                      {perfilFilter && (
-                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 inline-block shrink-0" />
-                      )}
-                      <svg className={`w-3 h-3 opacity-60 transition-transform ${perfilDropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </button>
+                    <HeaderControl
+                      label="Perfil"
+                      column="perfil"
+                      activeSort={sortKey}
+                      direction={sortDirection}
+                      onSort={handleSort}
+                      onFilterClick={() => setPerfilDropdownOpen(prev => !prev)}
+                      filterActive={Boolean(perfilFilter)}
+                      filterOpen={perfilDropdownOpen}
+                    />
                     {perfilDropdownOpen && (
                       <div className="absolute top-full left-0 z-30 mt-1 bg-gray-900 border border-gray-700 rounded-lg shadow-xl py-1 min-w-[220px]">
                         <button
@@ -810,21 +941,23 @@ export default function Page() {
                       </div>
                     )}
                   </th>
-                  <th className="text-left px-4 py-3 hidden lg:table-cell">Segmento</th>
-                  <th className="text-left px-4 py-3 hidden lg:table-cell">Faturamento</th>
+                  <th className="text-left px-4 py-3 hidden lg:table-cell">
+                    <HeaderControl label="Segmento" column="segmento" activeSort={sortKey} direction={sortDirection} onSort={handleSort} />
+                  </th>
+                  <th className="text-left px-4 py-3 hidden lg:table-cell">
+                    <HeaderControl label="Faturamento" column="faturamento" activeSort={sortKey} direction={sortDirection} onSort={handleSort} />
+                  </th>
                   <th ref={stageDropdownRef} className="text-left px-4 py-3 hidden md:table-cell relative">
-                    <button
-                      onClick={() => setStageDropdownOpen(prev => !prev)}
-                      className={`flex items-center gap-1.5 uppercase tracking-wider hover:text-white transition-colors ${stageFilter ? 'text-indigo-400' : ''}`}
-                    >
-                      Estágio
-                      {stageFilter && (
-                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 inline-block shrink-0" />
-                      )}
-                      <svg className={`w-3 h-3 opacity-60 transition-transform ${stageDropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </button>
+                    <HeaderControl
+                      label="Estágio"
+                      column="stage"
+                      activeSort={sortKey}
+                      direction={sortDirection}
+                      onSort={handleSort}
+                      onFilterClick={() => setStageDropdownOpen(prev => !prev)}
+                      filterActive={Boolean(stageFilter)}
+                      filterOpen={stageDropdownOpen}
+                    />
                     {stageDropdownOpen && (
                       <div className="absolute top-full left-0 z-30 mt-1 bg-gray-900 border border-gray-700 rounded-lg shadow-xl py-1 min-w-[190px]">
                         <button
@@ -848,9 +981,15 @@ export default function Page() {
                       </div>
                     )}
                   </th>
-                  <th className="text-left px-4 py-3 hidden md:table-cell">Responsável</th>
-                  <th className="text-left px-4 py-3">Status</th>
-                  <th className="text-left px-4 py-3 hidden md:table-cell">Diagnóstico</th>
+                  <th className="text-left px-4 py-3 hidden md:table-cell">
+                    <HeaderControl label="Responsável" column="responsavel" activeSort={sortKey} direction={sortDirection} onSort={handleSort} />
+                  </th>
+                  <th className="text-left px-4 py-3">
+                    <HeaderControl label="Status" column="status" activeSort={sortKey} direction={sortDirection} onSort={handleSort} />
+                  </th>
+                  <th className="text-left px-4 py-3 hidden md:table-cell">
+                    <HeaderControl label="Diagnóstico" column="diagnostico" activeSort={sortKey} direction={sortDirection} onSort={handleSort} />
+                  </th>
                 </tr>
               </thead>
               <tbody>
