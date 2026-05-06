@@ -1854,11 +1854,11 @@ export default function Page() {
         </div>
 
         {/* Tabela */}
-        <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+        <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-x-auto">
           {loading ? (
             <div className="py-20 text-center text-gray-500">Carregando...</div>
           ) : (
-            <table className="w-full text-sm">
+            <table className="w-full min-w-[1180px] text-sm">
               <thead>
                 <tr className="border-b border-gray-800 text-xs text-gray-500">
                   <th className="text-left px-4 py-3 hidden sm:table-cell">
@@ -2018,11 +2018,11 @@ export default function Page() {
                       </div>
                     )}
                   </th>
-                  <th className="text-left px-4 py-3">
-                    <HeaderControl label="Status" column="status" activeSort={sortKey} direction={sortDirection} onSort={handleSort} />
-                  </th>
                   <th className="text-left px-4 py-3 hidden md:table-cell">
                     <HeaderControl label="Diagnóstico" column="diagnostico" activeSort={sortKey} direction={sortDirection} onSort={handleSort} />
+                  </th>
+                  <th className="text-left px-4 py-3">
+                    <HeaderControl label="Status" column="status" activeSort={sortKey} direction={sortDirection} onSort={handleSort} />
                   </th>
                 </tr>
               </thead>
@@ -2096,16 +2096,16 @@ export default function Page() {
                           )
                         })()}
                       </td>
+                      <td className="px-4 py-3 hidden md:table-cell">
+                        {lead.diagnostico_url
+                          ? <a href={lead.diagnostico_url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-indigo-900/50 text-indigo-300 border border-indigo-800 hover:bg-indigo-800/50 hover:text-white transition-colors">Abrir →</a>
+                          : <span className="px-2 py-0.5 rounded-full text-xs bg-gray-800/50 text-gray-500 border border-gray-800">Não gerado</span>
+                        }
+                      </td>
                       <td className="px-4 py-3">
                         {lead.response_type === 'completed'
                           ? <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-900/50 text-green-400 border border-green-800">Completo</span>
                           : <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-900/50 text-yellow-400 border border-yellow-800">Parcial</span>
-                        }
-                      </td>
-                      <td className="px-4 py-3 hidden md:table-cell">
-                        {lead.diagnostico_url
-                          ? <a href={lead.diagnostico_url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-indigo-900/50 text-indigo-400 border border-indigo-800 hover:bg-indigo-800/50 transition-colors">Ver →</a>
-                          : <span className="px-2 py-0.5 rounded-full text-xs bg-gray-800/50 text-gray-600 border border-gray-800">Pendente</span>
                         }
                       </td>
                     </tr>
