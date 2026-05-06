@@ -65,9 +65,59 @@ type Lead = {
   responsavel_nome: string | null
 }
 
+type Agendamento = {
+  id: number
+  lead_id: number | null
+  responsavel_id: number | null
+  google_event_id: string | null
+  google_event_link: string | null
+  titulo: string
+  nome: string
+  email: string
+  telefone: string | null
+  empresa: string | null
+  inicio: string
+  fim: string
+  timezone: string
+  status: string
+  observacoes: string | null
+  origem: string | null
+  origem_lead: string | null
+  responsavel_nome: string | null
+}
+
+type EditableLeadField =
+  | 'first_name'
+  | 'last_name'
+  | 'email'
+  | 'phone'
+  | 'empresa'
+  | 'tipo_negocio'
+  | 'faturamento_anual'
+  | 'num_colaboradores'
+  | 'tempo_negocio'
+  | 'visibilidade_google'
+  | 'tem_gmb'
+  | 'usa_instagram'
+  | 'instagram_handle'
+  | 'tem_site'
+  | 'url_site'
+  | 'investimento_mensal'
+  | 'faz_anuncios'
+  | 'canal_aquisicao'
+  | 'usa_ia'
+  | 'problema_principal'
+  | 'urgencia'
+  | 'trabalhou_agencia'
+  | 'monetiza_conhecimento'
+  | 'interesse_mentoria'
+  | 'interesse_livro'
+
+type EditableLeadPatch = Partial<Pick<Lead, EditableLeadField>>
+
 type SortKey = 'date' | 'origem_lead' | 'name' | 'perfil' | 'segmento' | 'faturamento' | 'stage' | 'status' | 'diagnostico'
 type SortDirection = 'asc' | 'desc'
-type AppView = 'leads' | 'dashboard'
+type AppView = 'leads' | 'dashboard' | 'agenda'
 type OriginFilter = 'todos' | 'brasil' | 'eua'
 
 const STAGES: { value: string; label: string; color: string; bg: string; border: string }[] = [
@@ -507,15 +557,30 @@ function NotasPanel({ leadId, responsavelId }: { leadId: number; responsavelId: 
   )
 }
 
-function Modal({ lead, onClose, onDiagnosticoFound, responsaveis, onResponsavelChange }: {
+function Modal({ lead, onClose, onDiagnosticoFound, responsaveis, onResponsavelChange, onLeadUpdate }: {
   lead: Lead
   onClose: () => void
   onDiagnosticoFound?: (url: string) => void
   responsaveis: Responsavel[]
   onResponsavelChange: (leadId: number, responsavel_id: number | null) => void
+  onLeadUpdate: (leadId: number, patch: EditableLeadPatch) => Promise<boolean>
 }) {
   const name = [lead.first_name, lead.last_name].filter(Boolean).join(' ') || '—'
   const dores = DORES.filter(d => lead[d.key])
+  const [savingField, setSavingField] = useState<EditableLeadField | null>(null)
+  const [editError, setEditError] = useState('')
+
+  const saveField = async (field: EditableLeadField, value: string) => {
+    setSavingField(field)
+    setEditError('')
+    try {
+      const ok = await onLeadUpdate(lead.id, { [field]: value.trim() || null } as EditableLeadPatch)
+      if (!ok) setEditError('Nao foi possivel salvar. Tente novamente.')
+      return ok
+    } finally {
+      setSavingField(null)
+    }
+  }
 
   return (
     <div
@@ -544,11 +609,10 @@ function Modal({ lead, onClose, onDiagnosticoFound, responsaveis, onResponsavelC
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
           {/* Contato */}
           <Section title="Contato">
-            <div className="flex gap-2 items-center">
-              <span className="text-gray-500 shrink-0">Email:</span>
-              <CopyEmail email={lead.email} />
-            </div>
-            <Row label="Telefone" value={lead.phone} />
+            <EditableRow label="Nome" field="first_name" value={lead.first_name} onSave={saveField} saving={savingField === 'first_name'} />
+            <EditableRow label="Sobrenome" field="last_name" value={lead.last_name} onSave={saveField} saving={savingField === 'last_name'} />
+            <EditableRow label="Email" field="email" value={lead.email} onSave={saveField} saving={savingField === 'email'} />
+            <EditableRow label="Telefone" field="phone" value={lead.phone} onSave={saveField} saving={savingField === 'phone'} />
             <Row label="Data" value={formatDate(lead.submit_date || lead.stage_date)} />
             <div className="flex gap-2 items-center pt-1">
               <span className="text-gray-500 shrink-0 text-sm">Responsável:</span>
@@ -567,26 +631,29 @@ function Modal({ lead, onClose, onDiagnosticoFound, responsaveis, onResponsavelC
 
           {/* Negócio */}
           <Section title="Negócio">
-            <Row label="Segmento" value={lead.tipo_negocio} />
-            <Row label="Tempo" value={lead.tempo_negocio} />
-            <Row label="Equipe" value={lead.num_colaboradores} />
-            <Row label="Faturamento" value={lead.faturamento_anual} />
+            <EditableRow label="Empresa" field="empresa" value={lead.empresa} onSave={saveField} saving={savingField === 'empresa'} />
+            <EditableRow label="Segmento" field="tipo_negocio" value={lead.tipo_negocio} onSave={saveField} saving={savingField === 'tipo_negocio'} />
+            <EditableRow label="Tempo" field="tempo_negocio" value={lead.tempo_negocio} onSave={saveField} saving={savingField === 'tempo_negocio'} />
+            <EditableRow label="Equipe" field="num_colaboradores" value={lead.num_colaboradores} onSave={saveField} saving={savingField === 'num_colaboradores'} />
+            <EditableRow label="Faturamento" field="faturamento_anual" value={lead.faturamento_anual} onSave={saveField} saving={savingField === 'faturamento_anual'} />
           </Section>
 
           {/* Presença digital */}
           <Section title="Presença digital">
-            <Row label="Google" value={lead.visibilidade_google} />
-            <Row label="GMB" value={lead.tem_gmb} />
-            <Row label="Instagram" value={lead.instagram_handle || lead.usa_instagram} />
-            <Row label="Site" value={lead.url_site || lead.tem_site} link={lead.url_site} />
+            <EditableRow label="Google" field="visibilidade_google" value={lead.visibilidade_google} onSave={saveField} saving={savingField === 'visibilidade_google'} />
+            <EditableRow label="GMB" field="tem_gmb" value={lead.tem_gmb} onSave={saveField} saving={savingField === 'tem_gmb'} />
+            <EditableRow label="Usa Instagram" field="usa_instagram" value={lead.usa_instagram} onSave={saveField} saving={savingField === 'usa_instagram'} />
+            <EditableRow label="@ Instagram" field="instagram_handle" value={lead.instagram_handle} onSave={saveField} saving={savingField === 'instagram_handle'} />
+            <EditableRow label="Tem site" field="tem_site" value={lead.tem_site} onSave={saveField} saving={savingField === 'tem_site'} />
+            <EditableRow label="URL site" field="url_site" value={lead.url_site} link={lead.url_site} onSave={saveField} saving={savingField === 'url_site'} />
           </Section>
 
           {/* Marketing */}
           <Section title="Marketing atual">
-            <Row label="Investimento" value={lead.investimento_mensal} />
-            <Row label="Anúncios" value={lead.faz_anuncios} />
-            <Row label="Aquisição" value={lead.canal_aquisicao} />
-            <Row label="Usa IA" value={lead.usa_ia} />
+            <EditableRow label="Investimento" field="investimento_mensal" value={lead.investimento_mensal} onSave={saveField} saving={savingField === 'investimento_mensal'} />
+            <EditableRow label="Anúncios" field="faz_anuncios" value={lead.faz_anuncios} onSave={saveField} saving={savingField === 'faz_anuncios'} />
+            <EditableRow label="Aquisição" field="canal_aquisicao" value={lead.canal_aquisicao} onSave={saveField} saving={savingField === 'canal_aquisicao'} />
+            <EditableRow label="Usa IA" field="usa_ia" value={lead.usa_ia} onSave={saveField} saving={savingField === 'usa_ia'} />
           </Section>
 
           {/* Qualificação */}
@@ -597,10 +664,11 @@ function Modal({ lead, onClose, onDiagnosticoFound, responsaveis, onResponsavelC
                 <PerfilBadge perfil={lead.perfil} />
               </div>
             )}
-            <Row label="Urgência" value={lead.urgencia} valueClass={urgencyColor(lead.urgencia)} />
-            <Row label="Já teve agência" value={lead.trabalhou_agencia} />
-            <Row label="Monetiza conhecimento" value={lead.monetiza_conhecimento} />
-            <Row label="Interesse mentoria" value={lead.interesse_mentoria} />
+            <EditableRow label="Urgência" field="urgencia" value={lead.urgencia} valueClass={urgencyColor(lead.urgencia)} onSave={saveField} saving={savingField === 'urgencia'} />
+            <EditableRow label="Já teve agência" field="trabalhou_agencia" value={lead.trabalhou_agencia} onSave={saveField} saving={savingField === 'trabalhou_agencia'} />
+            <EditableRow label="Monetiza conhecimento" field="monetiza_conhecimento" value={lead.monetiza_conhecimento} onSave={saveField} saving={savingField === 'monetiza_conhecimento'} />
+            <EditableRow label="Interesse mentoria" field="interesse_mentoria" value={lead.interesse_mentoria} onSave={saveField} saving={savingField === 'interesse_mentoria'} />
+            <EditableRow label="Interesse livro" field="interesse_livro" value={lead.interesse_livro} onSave={saveField} saving={savingField === 'interesse_livro'} />
           </Section>
 
           {/* Intenção */}
@@ -614,13 +682,25 @@ function Modal({ lead, onClose, onDiagnosticoFound, responsaveis, onResponsavelC
           </Section>
         </div>
 
-        {/* Problema principal */}
-        {lead.problema_principal && (
-          <div className="mt-4 p-3 bg-gray-800 rounded-lg border border-gray-700">
-            <p className="text-xs text-gray-500 mb-1">Problema principal</p>
-            <p className="text-gray-200 text-sm">"{lead.problema_principal}"</p>
+        {editError && (
+          <div className="mt-4 rounded-lg border border-red-800 bg-red-950/40 px-3 py-2 text-sm text-red-200">
+            {editError}
           </div>
         )}
+
+        {/* Problema principal */}
+        <div className="mt-4 p-3 bg-gray-800 rounded-lg border border-gray-700">
+          <p className="text-xs text-gray-500 mb-2">Problema principal</p>
+          <EditableRow
+            label=""
+            field="problema_principal"
+            value={lead.problema_principal}
+            onSave={saveField}
+            saving={savingField === 'problema_principal'}
+            multiline
+            placeholder="Clique para preencher ou corrigir o problema principal"
+          />
+        </div>
 
         {/* Dores */}
         {dores.length > 0 && (
@@ -664,6 +744,109 @@ function Row({ label, value, link, valueClass }: { label: string; value: string 
         ? <a href={link.startsWith('http') ? link : `https://${link}`} target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:underline truncate">{value}</a>
         : <span className={valueClass || 'text-gray-200'}>{value}</span>
       }
+    </div>
+  )
+}
+
+function EditableRow({ label, field, value, link, valueClass, multiline = false, placeholder = 'Clique para editar', saving, onSave }: {
+  label: string
+  field: EditableLeadField
+  value: string | null | undefined
+  link?: string | null
+  valueClass?: string
+  multiline?: boolean
+  placeholder?: string
+  saving?: boolean
+  onSave: (field: EditableLeadField, value: string) => Promise<boolean>
+}) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(value || '')
+
+  useEffect(() => {
+    if (!editing) setDraft(value || '')
+  }, [editing, value])
+
+  const save = async () => {
+    const ok = await onSave(field, draft)
+    if (ok) setEditing(false)
+  }
+
+  const cancel = () => {
+    setDraft(value || '')
+    setEditing(false)
+  }
+
+  if (editing) {
+    const inputClass = 'w-full rounded-lg border border-indigo-700 bg-gray-950 px-2 py-1.5 text-sm text-gray-100 outline-none focus:border-indigo-400'
+    return (
+      <div className="grid gap-1.5">
+        <label className="text-xs font-semibold uppercase tracking-wider text-gray-500">{label || 'Campo'}</label>
+        {multiline ? (
+          <textarea
+            value={draft}
+            onChange={event => setDraft(event.target.value)}
+            rows={3}
+            autoFocus
+            className={inputClass}
+          />
+        ) : (
+          <input
+            value={draft}
+            onChange={event => setDraft(event.target.value)}
+            onKeyDown={event => {
+              if (event.key === 'Enter') save()
+              if (event.key === 'Escape') cancel()
+            }}
+            autoFocus
+            className={inputClass}
+          />
+        )}
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={save}
+            disabled={saving}
+            className="rounded-lg bg-indigo-600 px-2.5 py-1 text-xs font-bold text-white transition-colors hover:bg-indigo-500 disabled:bg-gray-700"
+          >
+            {saving ? 'Salvando...' : 'Salvar'}
+          </button>
+          <button
+            type="button"
+            onClick={cancel}
+            disabled={saving}
+            className="rounded-lg border border-gray-700 px-2.5 py-1 text-xs font-semibold text-gray-400 transition-colors hover:text-white"
+          >
+            Cancelar
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  const displayValue = value || ''
+  return (
+    <div className="flex items-start gap-2">
+      {label && <span className="text-gray-500 shrink-0">{label}:</span>}
+      <button
+        type="button"
+        onClick={() => setEditing(true)}
+        className={`min-w-0 text-left transition-colors hover:text-indigo-300 hover:underline ${displayValue ? valueClass || 'text-gray-200' : 'text-gray-600 italic'}`}
+        title="Clique para editar"
+      >
+        {displayValue || placeholder}
+      </button>
+      {link && displayValue && (
+        <a
+          href={link.startsWith('http') ? link : `https://${link}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={event => event.stopPropagation()}
+          className="shrink-0 text-xs text-indigo-500 hover:text-indigo-300"
+          title="Abrir link"
+        >
+          abrir
+        </a>
+      )}
     </div>
   )
 }
@@ -799,6 +982,7 @@ function AppSidebar({ activeView, onViewChange, totalLeads }: {
   const items: { value: AppView; label: string; description: string; icon: string }[] = [
     { value: 'leads', label: 'Leads', description: 'Tabela e operacao', icon: 'LD' },
     { value: 'dashboard', label: 'Dashboard', description: 'Resumo comercial', icon: 'DB' },
+    { value: 'agenda', label: 'Agenda', description: 'Reunioes marcadas', icon: 'AG' },
   ]
 
   return (
@@ -814,7 +998,7 @@ function AppSidebar({ activeView, onViewChange, totalLeads }: {
         </div>
       </div>
 
-      <nav className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
+      <nav className="mt-5 grid gap-2 sm:grid-cols-3 lg:grid-cols-1">
         {items.map(item => {
           const active = activeView === item.value
           return (
@@ -847,7 +1031,7 @@ function AppSidebar({ activeView, onViewChange, totalLeads }: {
       <div className="mt-5 hidden rounded-2xl border border-gray-800 bg-gray-900/50 p-3 lg:block">
         <p className="text-xs font-semibold text-gray-300">Atalho de leitura</p>
         <p className="mt-1 text-xs leading-relaxed text-gray-500">
-          Use o dashboard para responder rapido quantos leads existem, onde travaram e quais origens estao trazendo volume.
+          Use o dashboard e a agenda para acompanhar volume, gargalos e reunioes marcadas.
         </p>
       </div>
     </aside>
@@ -1148,6 +1332,198 @@ function DashboardView({ leads, origemLeadOptions, mercadoFilter, onMercadoChang
   )
 }
 
+function addDaysToDate(date: Date, days: number) {
+  const next = new Date(date)
+  next.setDate(next.getDate() + days)
+  return next
+}
+
+function toDateInputValue(date: Date) {
+  return date.toISOString().slice(0, 10)
+}
+
+function startOfWeek(dateValue: string) {
+  const date = new Date(`${dateValue}T12:00:00`)
+  const day = date.getDay()
+  const diff = day === 0 ? -6 : 1 - day
+  return addDaysToDate(date, diff)
+}
+
+function formatAgendaTime(value: string, timeZone: string) {
+  return new Intl.DateTimeFormat('pt-BR', {
+    timeZone,
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(value))
+}
+
+function formatAgendaDate(value: Date) {
+  return new Intl.DateTimeFormat('pt-BR', {
+    weekday: 'short',
+    day: '2-digit',
+    month: '2-digit',
+  }).format(value)
+}
+
+function sameAgendaDay(iso: string, day: Date, timeZone: string) {
+  const dateLabel = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date(iso))
+  return dateLabel === toDateInputValue(day)
+}
+
+function AgendaView() {
+  const [weekDate, setWeekDate] = useState(toDateInputValue(new Date()))
+  const [items, setItems] = useState<Agendamento[]>([])
+  const [timeZone, setTimeZone] = useState('America/New_York')
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  const weekStart = startOfWeek(weekDate)
+  const weekDays = Array.from({ length: 7 }, (_, index) => addDaysToDate(weekStart, index))
+  const from = new Date(weekStart)
+  from.setHours(0, 0, 0, 0)
+  const to = addDaysToDate(from, 7)
+  const upcoming = items.filter(item => item.status === 'agendado' && new Date(item.inicio) >= new Date()).length
+  const completed = items.filter(item => item.status === 'realizado').length
+  const canceled = items.filter(item => item.status === 'cancelado').length
+  const bookingUrl = typeof window !== 'undefined' ? `${window.location.origin}/agendar` : '/agendar'
+
+  useEffect(() => {
+    setLoading(true)
+    setError('')
+    fetch(`/api/agendamentos?from=${encodeURIComponent(from.toISOString())}&to=${encodeURIComponent(to.toISOString())}`)
+      .then(response => response.json())
+      .then(data => {
+        if (data.error) throw new Error(data.error)
+        setItems(Array.isArray(data.agendamentos) ? data.agendamentos : [])
+        setTimeZone(data.timeZone || 'America/New_York')
+      })
+      .catch(() => {
+        setItems([])
+        setError('Nao foi possivel carregar a agenda. Verifique se a tabela agendamentos ja foi criada.')
+      })
+      .finally(() => setLoading(false))
+  }, [weekDate])
+
+  return (
+    <div className="mx-auto max-w-7xl">
+      <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-indigo-300">Agenda</p>
+          <h2 className="mt-2 text-3xl font-bold text-white">Reunioes agendadas</h2>
+          <p className="mt-2 max-w-2xl text-sm text-gray-500">
+            Visao interna dos horarios marcados na agenda unica da High Digital.
+          </p>
+        </div>
+        <a
+          href={bookingUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="rounded-2xl border border-indigo-500/60 bg-indigo-600 px-4 py-3 text-sm font-bold text-white transition-colors hover:bg-indigo-500"
+        >
+          Abrir link de agendamento
+        </a>
+      </div>
+
+      <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <DashboardMetric label="Semana" value={items.length} caption="Agendamentos no periodo" />
+        <DashboardMetric label="Proximas" value={upcoming} caption="Ainda futuras" color="indigo" />
+        <DashboardMetric label="Realizadas" value={completed} caption="Marcadas como feitas" color="green" />
+        <DashboardMetric label="Canceladas" value={canceled} caption="Nao ativas" color="red" />
+      </div>
+
+      <section className="mb-6 rounded-3xl border border-gray-800 bg-gray-900/70 p-4">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">Controle da semana</p>
+            <p className="mt-1 text-sm text-gray-400">Fuso da agenda: {timeZone}</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setWeekDate(toDateInputValue(addDaysToDate(weekStart, -7)))}
+              className="rounded-xl border border-gray-700 bg-gray-950 px-3 py-2 text-sm font-semibold text-gray-300 hover:text-white"
+            >
+              Semana anterior
+            </button>
+            <input
+              type="date"
+              value={weekDate}
+              onChange={event => setWeekDate(event.target.value)}
+              className="rounded-xl border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-gray-100 outline-none focus:border-indigo-500 [color-scheme:dark]"
+            />
+            <button
+              type="button"
+              onClick={() => setWeekDate(toDateInputValue(addDaysToDate(weekStart, 7)))}
+              className="rounded-xl border border-gray-700 bg-gray-950 px-3 py-2 text-sm font-semibold text-gray-300 hover:text-white"
+            >
+              Proxima semana
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {error && (
+        <div className="mb-6 rounded-3xl border border-red-800 bg-red-950/40 p-4 text-sm text-red-200">
+          {error}
+        </div>
+      )}
+
+      <div className="grid gap-4 xl:grid-cols-7">
+        {weekDays.map(day => {
+          const dayItems = items.filter(item => sameAgendaDay(item.inicio, day, timeZone))
+          return (
+            <section key={day.toISOString()} className="min-h-[220px] rounded-3xl border border-gray-800 bg-gray-900/70 p-4">
+              <div className="mb-4">
+                <p className="text-sm font-bold capitalize text-white">{formatAgendaDate(day)}</p>
+                <p className="mt-1 text-xs text-gray-600">{dayItems.length} agendamento{dayItems.length !== 1 ? 's' : ''}</p>
+              </div>
+              <div className="grid gap-3">
+                {loading ? (
+                  <div className="rounded-2xl border border-gray-800 p-4 text-center text-xs text-gray-600">Carregando...</div>
+                ) : dayItems.length ? (
+                  dayItems.map(item => (
+                    <article key={item.id} className="rounded-2xl border border-gray-800 bg-gray-950/70 p-3">
+                      <p className="text-xs font-bold text-indigo-300">
+                        {formatAgendaTime(item.inicio, timeZone)} - {formatAgendaTime(item.fim, timeZone)}
+                      </p>
+                      <h3 className="mt-2 text-sm font-semibold text-white">{item.nome}</h3>
+                      <p className="mt-1 truncate text-xs text-gray-500" title={item.empresa || undefined}>{item.empresa || item.email}</p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <span className="rounded-full border border-gray-700 px-2 py-0.5 text-[10px] font-semibold uppercase text-gray-400">
+                          {item.status}
+                        </span>
+                        {item.google_event_link && (
+                          <a
+                            href={item.google_event_link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="rounded-full border border-indigo-800 px-2 py-0.5 text-[10px] font-semibold uppercase text-indigo-300 hover:text-indigo-100"
+                          >
+                            Google
+                          </a>
+                        )}
+                      </div>
+                    </article>
+                  ))
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-gray-800 p-4 text-center text-xs text-gray-600">
+                    Sem reunioes
+                  </div>
+                )}
+              </div>
+            </section>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 export default function Page() {
   const [activeView, setActiveView] = useState<AppView>('leads')
   const [leads, setLeads] = useState<Lead[]>([])
@@ -1344,6 +1720,23 @@ export default function Page() {
       .catch(() => alert('Erro ao salvar responsável. Tente novamente.'))
   }
 
+  const handleLeadDataUpdate = async (leadId: number, patch: EditableLeadPatch) => {
+    try {
+      const res = await fetch(`/api/leads/${leadId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patch),
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+
+      setLeads(prev => prev.map(l => l.id === leadId ? { ...l, ...patch } : l))
+      setSelected(prev => prev && prev.id === leadId ? { ...prev, ...patch } : prev)
+      return true
+    } catch {
+      return false
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100">
       <div className="flex min-h-screen flex-col lg:flex-row">
@@ -1359,6 +1752,8 @@ export default function Page() {
               onOrigemLeadChange={setDashboardOrigemLeadFilter}
               loading={loading}
             />
+          ) : activeView === 'agenda' ? (
+            <AgendaView />
           ) : (
       <div className="max-w-7xl mx-auto">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
@@ -1730,6 +2125,7 @@ export default function Page() {
           onDiagnosticoFound={(url) => setLeads(prev => prev.map(l => l.id === selected.id ? { ...l, diagnostico_url: url } : l))}
           responsaveis={responsaveis}
           onResponsavelChange={handleResponsavelChange}
+          onLeadUpdate={handleLeadDataUpdate}
         />
       )}
     </div>

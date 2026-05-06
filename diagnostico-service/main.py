@@ -7,6 +7,7 @@ import os
 import json
 import asyncio
 import logging
+import time
 from pathlib import Path
 from datetime import datetime, timezone
 
@@ -26,6 +27,8 @@ BASE_URL = os.environ.get('BASE_URL', 'https://leadsramonbr.edylawson.com.br')
 DATABASE_URL = os.environ.get('DATABASE_URL', '')
 ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY', '')
 APIFY_TOKEN = os.environ.get('APIFY_API_TOKEN', '')
+ANTHROPIC_INPUT_PRICE_PER_MTOK = os.environ.get('ANTHROPIC_INPUT_PRICE_PER_MTOK', '')
+ANTHROPIC_OUTPUT_PRICE_PER_MTOK = os.environ.get('ANTHROPIC_OUTPUT_PRICE_PER_MTOK', '')
 
 SYSTEM_PROMPT = (SERVICE_DIR / 'system-prompt-diagnostico.md').read_text(encoding='utf-8')
 TEMPLATE_HTML = (SERVICE_DIR / 'template.html').read_text(encoding='utf-8')
@@ -386,9 +389,49 @@ def extrair_json(raw: str) -> dict:
     raise ValueError('Não foi possível extrair JSON válido da resposta do Claude')
 
 
+def medir_json(obj) -> dict:
+    """Mede tamanho do payload sem expor dados sensiveis nos logs."""
+    text = json.dumps(obj, ensure_ascii=False)
+    return {
+        'chars': len(text),
+        'approx_tokens_by_chars': max(1, round(len(text) / 4)),
+    }
+
+
+def usage_to_dict(usage) -> dict:
+    if not usage:
+        return {}
+    fields = [
+        'input_tokens',
+        'output_tokens',
+        'cache_creation_input_tokens',
+        'cache_read_input_tokens',
+    ]
+    return {
+        field: getattr(usage, field)
+        for field in fields
+        if getattr(usage, field, None) is not None
+    }
+
+
+def calcular_custo_estimado_usd(usage: dict) -> float | None:
+    """Calcula custo somente se os precos forem configurados via env."""
+    try:
+        input_price = float(ANTHROPIC_INPUT_PRICE_PER_MTOK)
+        output_price = float(ANTHROPIC_OUTPUT_PRICE_PER_MTOK)
+    except (TypeError, ValueError):
+        return None
+
+    input_tokens = usage.get('input_tokens') or 0
+    output_tokens = usage.get('output_tokens') or 0
+    cost = (input_tokens / 1_000_000 * input_price) + (output_tokens / 1_000_000 * output_price)
+    return round(cost, 6)
+
+
 def analisar_com_claude(dados: dict) -> dict:
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
     dados_str = json.dumps(dados, ensure_ascii=False, indent=2)
+    started_at = time.perf_counter()
 
     message = client.messages.create(
         model='claude-haiku-3-5',
@@ -405,7 +448,31 @@ def analisar_com_claude(dados: dict) -> dict:
     )
 
     raw = message.content[0].text
-    return extrair_json(raw)
+    duration_ms = round((time.perf_counter() - started_at) * 1000)
+    usage = usage_to_dict(getattr(message, 'usage', None))
+
+    diagnostico = extrair_json(raw)
+    diagnostico.setdefault('_meta', {})
+    diagnostico['_meta']['geracao_ia'] = {
+        'model': 'claude-haiku-3-5',
+        'prompt_version': 'v3',
+        'measured_at': datetime.now(timezone.utc).isoformat(),
+        'duration_ms': duration_ms,
+        'system_prompt_chars': len(SYSTEM_PROMPT),
+        'input_payload_chars': len(dados_str),
+        'output_chars': len(raw),
+        'approx_input_tokens_by_chars': max(1, round((len(SYSTEM_PROMPT) + len(dados_str)) / 4)),
+        'anthropic_usage': usage,
+        'estimated_cost_usd': calcular_custo_estimado_usd(usage),
+    }
+    log.info(
+        'Claude usage diag: input_tokens=%s output_tokens=%s duration_ms=%s payload_chars=%s',
+        usage.get('input_tokens'),
+        usage.get('output_tokens'),
+        duration_ms,
+        len(dados_str),
+    )
+    return diagnostico
 
 
 # ─── Renderização HTML ───────────────────────────────────────
@@ -418,25 +485,62 @@ def render_html(diagnostico: dict) -> str:
 # ─── Task de background ──────────────────────────────────────
 
 def processar_diagnostico(lead_id: int, diag_id: int):
+    pipeline_started_at = time.perf_counter()
+    timings = {}
     log.info(f'Iniciando processamento diagnóstico — lead_id={lead_id}, diag_id={diag_id}')
     try:
+        started_at = time.perf_counter()
         lead = get_lead(lead_id)
         formulario = map_lead_para_formulario(lead)
+        timings['carregar_lead_ms'] = round((time.perf_counter() - started_at) * 1000)
 
         log.info(f'Coletando dados externos para: {formulario.get("nome_empresa", "?")}')
+        started_at = time.perf_counter()
         externos = coletar_dados_externos(formulario)
+        timings['coleta_externa_ms'] = round((time.perf_counter() - started_at) * 1000)
 
         dados_completos = {
             'formulario': formulario,
             **externos,
             'coletado_em': datetime.now(timezone.utc).isoformat(),
         }
+        payload_sizes = {
+            'formulario': medir_json(formulario),
+            'externos': medir_json(externos),
+            'dados_completos': medir_json(dados_completos),
+        }
 
         log.info('Chamando Claude API...')
+        started_at = time.perf_counter()
         diagnostico = analisar_com_claude(dados_completos)
+        timings['ia_total_ms'] = round((time.perf_counter() - started_at) * 1000)
 
+        started_at = time.perf_counter()
+        diagnostico.setdefault('_meta', {})
+        diagnostico['_meta']['pipeline'] = {
+            'lead_id': lead_id,
+            'diagnostico_id': diag_id,
+            'measured_at': datetime.now(timezone.utc).isoformat(),
+            'durations_ms': timings,
+            'payload_sizes': payload_sizes,
+        }
         html = render_html(diagnostico)
+        timings['render_html_ms'] = round((time.perf_counter() - started_at) * 1000)
+        diagnostico['_meta']['pipeline']['durations_ms']['render_html_ms'] = timings['render_html_ms']
+        diagnostico['_meta']['pipeline']['durations_ms']['total_before_save_ms'] = round(
+            (time.perf_counter() - pipeline_started_at) * 1000
+        )
+
+        log.info(
+            'Pipeline metrics diag_id=%s sizes=%s durations_ms=%s',
+            diag_id,
+            payload_sizes,
+            diagnostico['_meta']['pipeline']['durations_ms'],
+        )
+        started_at = time.perf_counter()
         url = salvar_diagnostico(lead_id, diag_id, diagnostico, html)
+        timings['salvar_db_ms'] = round((time.perf_counter() - started_at) * 1000)
+        log.info('Save metrics diag_id=%s save_db_ms=%s', diag_id, timings['salvar_db_ms'])
         log.info(f'Diagnóstico concluído: {url}')
 
     except Exception as e:

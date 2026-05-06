@@ -42,7 +42,11 @@ app/
         notas/route.ts
     responsaveis/route.ts
     diagnostics/generate/route.ts
+    agendamentos/route.ts
+    agendamentos/disponibilidade/route.ts
+    agendamentos/lead/route.ts
   diagnostico/[uuid]/route.ts
+  agendar/page.tsx
 diagnostico-service/
 scripts/
 ```
@@ -54,6 +58,11 @@ Pontos criticos:
 - `app/api/leads/[id]/route.ts`: GET do status do diagnostico e PATCH de `stage`, `responsavel_id` e `perfil`.
 - `app/api/leads/[id]/notas/route.ts`: observacoes por lead.
 - `app/api/diagnostics/generate/route.ts`: dispara a geracao do diagnostico via servico Python.
+- `app/api/agendamentos/route.ts`: lista e cria agendamentos vinculados ao Google Calendar.
+- `app/api/agendamentos/disponibilidade/route.ts`: calcula horarios disponiveis da agenda unica.
+- `app/agendar/page.tsx`: pagina publica para leads escolherem um horario.
+  - Aceita query params para pre-preencher dados vindos do Typeform: `lead_id`, `response_id`, `email`, `nome`/`name`, `telefone`/`phone`, `empresa`/`company`.
+  - Quando `email`, `lead_id` ou `response_id` existe, a API cruza com a tabela `leads` para vincular o agendamento ao lead.
 - `app/diagnostico/[uuid]/route.ts`: entrega o HTML salvo do diagnostico.
 - `diagnostico-service/`: servico separado de geracao; mexer aqui somente quando a tarefa envolver o fluxo de diagnostico.
 
@@ -104,6 +113,7 @@ diagnostico_url TEXT
 | `leads_historico_estagios` | Log automatico de mudancas de estagio |
 | `notas` | Observacoes por lead com timestamp |
 | `diagnosticos` | HTMLs de diagnostico gerados pelo servico Python |
+| `agendamentos` | Reunioes marcadas na agenda unica e vinculadas a leads |
 
 ### Estagios validos (`VALID_STAGES`)
 
@@ -209,6 +219,13 @@ O servico Python tem pipeline separado:
 |----------|-----|
 | `DATABASE_URL` | conexao com PostgreSQL |
 | `DIAGNOSTICO_SERVICE_URL` | URL do servico FastAPI de diagnostico |
+| `GOOGLE_CALENDAR_ID` | ID da agenda unica usada para agendamentos |
+| `GOOGLE_SERVICE_ACCOUNT_EMAIL` | email da service account com acesso a agenda |
+| `GOOGLE_PRIVATE_KEY` | chave privada da service account, com `\n` escapado |
+| `GOOGLE_CALENDAR_TIME_ZONE` | fuso da agenda, padrao `America/New_York` |
+| `BOOKING_START_HOUR` | hora inicial dos slots de agendamento |
+| `BOOKING_END_HOUR` | hora final dos slots de agendamento |
+| `BOOKING_SLOT_MINUTES` | duracao dos slots |
 
 ### Diagnostico service
 

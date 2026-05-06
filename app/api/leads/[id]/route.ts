@@ -7,6 +7,34 @@ export const dynamic = 'force-dynamic'
 
 const VALID_STAGES = ['nao_iniciado', 'tentando_contato', 'primeiro_contato', 'follow_up', 'reuniao_agendada', 'no_show', 'diagnostico_enviado', 'em_negociacao', 'ganho', 'perdido']
 
+const EDITABLE_TEXT_FIELDS = [
+  'first_name',
+  'last_name',
+  'email',
+  'phone',
+  'empresa',
+  'tipo_negocio',
+  'faturamento_anual',
+  'num_colaboradores',
+  'tempo_negocio',
+  'visibilidade_google',
+  'tem_gmb',
+  'usa_instagram',
+  'instagram_handle',
+  'tem_site',
+  'url_site',
+  'investimento_mensal',
+  'faz_anuncios',
+  'canal_aquisicao',
+  'usa_ia',
+  'problema_principal',
+  'urgencia',
+  'trabalhou_agencia',
+  'monetiza_conhecimento',
+  'interesse_mentoria',
+  'interesse_livro',
+] as const
+
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
   const { id } = params
 
@@ -113,6 +141,24 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       await pool.query(
         'UPDATE leads SET origem_lead = $1 WHERE id = $2',
         [value, id]
+      )
+    }
+
+    const fieldUpdates: string[] = []
+    const fieldValues: (string | null)[] = []
+    for (const field of EDITABLE_TEXT_FIELDS) {
+      if (body[field] !== undefined) {
+        const rawValue = body[field]
+        const value = typeof rawValue === 'string' && rawValue.trim() ? rawValue.trim() : null
+        fieldValues.push(value)
+        fieldUpdates.push(`${field} = $${fieldValues.length}`)
+      }
+    }
+
+    if (fieldUpdates.length > 0) {
+      await pool.query(
+        `UPDATE leads SET ${fieldUpdates.join(', ')} WHERE id = $${fieldValues.length + 1}`,
+        [...fieldValues, id]
       )
     }
 
