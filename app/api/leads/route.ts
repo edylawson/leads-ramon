@@ -30,6 +30,7 @@ export async function GET() {
         l.instagram_handle,
         l.tem_site,
         l.url_site,
+        to_jsonb(l)->>'youtube_url' AS youtube_url,
         l.investimento_mensal,
         l.faz_anuncios,
         l.canal_aquisicao,

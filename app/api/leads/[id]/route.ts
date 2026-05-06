@@ -23,6 +23,7 @@ const EDITABLE_TEXT_FIELDS = [
   'instagram_handle',
   'tem_site',
   'url_site',
+  'youtube_url',
   'investimento_mensal',
   'faz_anuncios',
   'canal_aquisicao',

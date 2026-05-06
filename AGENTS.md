@@ -89,6 +89,7 @@ id, response_id, response_type ('completed' | 'partial')
 first_name, last_name, email, phone
 empresa, tipo_negocio, faturamento_anual, num_colaboradores, tempo_negocio
 visibilidade_google, tem_gmb, usa_instagram, tem_site, url_site
+youtube_url
 investimento_mensal, faz_anuncios, canal_aquisicao, usa_ia
 dor_sem_clientes, dor_sem_mkt, dor_sem_google, ... (booleans)
 problema_principal, urgencia, trabalhou_agencia

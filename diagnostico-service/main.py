@@ -192,6 +192,7 @@ def map_lead_para_formulario(row: dict) -> dict:
         'faturamento': row.get('faturamento_anual', '') or '',
         'instagram_handle': row.get('instagram_handle', '') or '',
         'site_url': row.get('url_site', '') or '',
+        'youtube_url': row.get('youtube_url', '') or '',
         'investimento_mensal': row.get('investimento_mensal', '') or '',
         'anuncios_pagos': 'Sim' if row.get('faz_anuncios') else 'Não',
         'origem_clientes': row.get('canal_aquisicao', '') or '',

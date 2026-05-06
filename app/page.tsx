@@ -27,6 +27,7 @@ type Lead = {
   instagram_handle: string | null
   tem_site: string | null
   url_site: string | null
+  youtube_url: string | null
   investimento_mensal: string | null
   faz_anuncios: string | null
   canal_aquisicao: string | null
@@ -102,6 +103,7 @@ type EditableLeadField =
   | 'instagram_handle'
   | 'tem_site'
   | 'url_site'
+  | 'youtube_url'
   | 'investimento_mensal'
   | 'faz_anuncios'
   | 'canal_aquisicao'
@@ -646,6 +648,7 @@ function Modal({ lead, onClose, onDiagnosticoFound, responsaveis, onResponsavelC
             <EditableRow label="@ Instagram" field="instagram_handle" value={lead.instagram_handle} onSave={saveField} saving={savingField === 'instagram_handle'} />
             <EditableRow label="Tem site" field="tem_site" value={lead.tem_site} onSave={saveField} saving={savingField === 'tem_site'} />
             <EditableRow label="URL site" field="url_site" value={lead.url_site} link={lead.url_site} onSave={saveField} saving={savingField === 'url_site'} />
+            <EditableRow label="YouTube" field="youtube_url" value={lead.youtube_url} link={lead.youtube_url} onSave={saveField} saving={savingField === 'youtube_url'} />
           </Section>
 
           {/* Marketing */}
