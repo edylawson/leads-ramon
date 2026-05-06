@@ -1854,17 +1854,17 @@ export default function Page() {
         </div>
 
         {/* Tabela */}
-        <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-x-auto">
+        <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
           {loading ? (
             <div className="py-20 text-center text-gray-500">Carregando...</div>
           ) : (
-            <table className="w-full min-w-[1180px] text-sm">
+            <table className="w-full table-fixed text-sm">
               <thead>
                 <tr className="border-b border-gray-800 text-xs text-gray-500">
-                  <th className="text-left px-4 py-3 hidden sm:table-cell">
+                  <th className="w-[92px] text-left px-4 py-3 hidden sm:table-cell">
                     <HeaderControl label="Data" column="date" activeSort={sortKey} direction={sortDirection} onSort={handleSort} />
                   </th>
-                  <th ref={origemLeadDropdownRef} className="text-left px-4 py-3 hidden md:table-cell relative">
+                  <th ref={origemLeadDropdownRef} className="w-[170px] text-left px-4 py-3 hidden md:table-cell relative">
                     <HeaderControl
                       label="Origem"
                       column="origem_lead"
@@ -1901,7 +1901,7 @@ export default function Page() {
                   <th className="text-left px-4 py-3">
                     <HeaderControl label="Nome" column="name" activeSort={sortKey} direction={sortDirection} onSort={handleSort} />
                   </th>
-                  <th ref={perfilDropdownRef} className="text-left px-4 py-3 hidden md:table-cell relative">
+                  <th ref={perfilDropdownRef} className="w-[76px] text-left px-4 py-3 hidden md:table-cell relative">
                     <HeaderControl
                       label="Perfil"
                       column="perfil"
@@ -1947,10 +1947,7 @@ export default function Page() {
                       </div>
                     )}
                   </th>
-                  <th className="text-left px-4 py-3 hidden lg:table-cell">
-                    <HeaderControl label="Segmento" column="segmento" activeSort={sortKey} direction={sortDirection} onSort={handleSort} />
-                  </th>
-                  <th ref={faturamentoDropdownRef} className="text-left px-4 py-3 hidden lg:table-cell relative">
+                  <th ref={faturamentoDropdownRef} className="w-[160px] text-left px-4 py-3 hidden lg:table-cell relative">
                     <HeaderControl
                       label="Faturamento"
                       column="faturamento"
@@ -1984,7 +1981,7 @@ export default function Page() {
                       </div>
                     )}
                   </th>
-                  <th ref={stageDropdownRef} className="text-left px-4 py-3 hidden md:table-cell relative">
+                  <th ref={stageDropdownRef} className="w-[230px] text-left px-4 py-3 hidden md:table-cell relative">
                     <HeaderControl
                       label="Estágio"
                       column="stage"
@@ -2018,18 +2015,15 @@ export default function Page() {
                       </div>
                     )}
                   </th>
-                  <th className="text-left px-4 py-3 hidden md:table-cell">
+                  <th className="w-[130px] text-left px-4 py-3 hidden md:table-cell">
                     <HeaderControl label="Diagnóstico" column="diagnostico" activeSort={sortKey} direction={sortDirection} onSort={handleSort} />
-                  </th>
-                  <th className="text-left px-4 py-3">
-                    <HeaderControl label="Status" column="status" activeSort={sortKey} direction={sortDirection} onSort={handleSort} />
                   </th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={9} className="py-20 text-center text-gray-500">Nenhum lead encontrado.</td>
+                    <td colSpan={7} className="py-20 text-center text-gray-500">Nenhum lead encontrado.</td>
                   </tr>
                 )}
                 {filtered.map((lead, i) => {
@@ -2050,8 +2044,8 @@ export default function Page() {
                         <div className="flex items-start gap-2">
                           <ResponsavelDot nome={lead.responsavel_nome} />
                           <div className="min-w-0">
-                            <div className="flex items-center gap-1.5">
-                              <p className="text-gray-100 font-medium">{name}</p>
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <p className="max-w-[220px] truncate text-gray-100 font-medium" title={name}>{name}</p>
                               {formatPhone(lead.phone) && (
                             <a
                               href={`https://wa.me/${formatPhone(lead.phone)}`}
@@ -2064,8 +2058,17 @@ export default function Page() {
                               <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.126 1.533 5.857L.057 23.857a.5.5 0 0 0 .612.612l6.004-1.476A11.933 11.933 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.907 0-3.7-.528-5.228-1.449l-.374-.222-3.875.952.97-3.773-.244-.389A9.956 9.956 0 0 1 2 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
                             </a>
                           )}
+                              {lead.response_type === 'completed'
+                                ? <span className="rounded-full border border-green-800 bg-green-900/40 px-1.5 py-0.5 text-[10px] font-semibold text-green-400">Completo</span>
+                                : <span className="rounded-full border border-yellow-800 bg-yellow-900/40 px-1.5 py-0.5 text-[10px] font-semibold text-yellow-400">Parcial</span>
+                              }
                             </div>
                             {lead.empresa && <p className="text-gray-500 text-xs mt-0.5">{lead.empresa}</p>}
+                            {lead.tipo_negocio && (
+                              <p className="mt-0.5 max-w-[280px] truncate text-[11px] text-gray-600" title={lead.tipo_negocio}>
+                                {lead.tipo_negocio}
+                              </p>
+                            )}
                             <CopyEmail email={lead.email} />
                           </div>
                         </div>
@@ -2073,7 +2076,6 @@ export default function Page() {
                       <td className="px-4 py-3 hidden md:table-cell">
                         <PerfilBadge perfil={lead.perfil} />
                       </td>
-                      <td className="px-4 py-3 text-gray-400 hidden lg:table-cell">{lead.tipo_negocio || '—'}</td>
                       <td className="px-4 py-3 text-gray-400 hidden lg:table-cell">{lead.faturamento_anual || '—'}</td>
                       <td className="px-4 py-3 hidden md:table-cell" onClick={e => e.stopPropagation()}>
                         {(() => {
@@ -2100,12 +2102,6 @@ export default function Page() {
                         {lead.diagnostico_url
                           ? <a href={lead.diagnostico_url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-indigo-900/50 text-indigo-300 border border-indigo-800 hover:bg-indigo-800/50 hover:text-white transition-colors">Abrir →</a>
                           : <span className="px-2 py-0.5 rounded-full text-xs bg-gray-800/50 text-gray-500 border border-gray-800">Não gerado</span>
-                        }
-                      </td>
-                      <td className="px-4 py-3">
-                        {lead.response_type === 'completed'
-                          ? <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-900/50 text-green-400 border border-green-800">Completo</span>
-                          : <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-900/50 text-yellow-400 border border-yellow-800">Parcial</span>
                         }
                       </td>
                     </tr>
