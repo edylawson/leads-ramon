@@ -84,7 +84,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
   try {
     const body = await req.json()
-    const { stage, responsavel_id, perfil, origem_lead, canal_vendas } = body
+    const { stage, responsavel_id, perfil, origem_lead, canal_vendas, pipeline_id } = body
 
     // Atualiza perfil
     if (perfil !== undefined) {
@@ -133,6 +133,17 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       await pool.query(
         'UPDATE leads SET responsavel_id = $1 WHERE id = $2',
         [responsavel_id || null, id]
+      )
+    }
+
+    if (pipeline_id !== undefined) {
+      const value = pipeline_id ? Number(pipeline_id) : null
+      if (pipeline_id && Number.isNaN(value)) {
+        return NextResponse.json({ error: 'Pipeline invalido' }, { status: 400 })
+      }
+      await pool.query(
+        'UPDATE leads SET pipeline_id = $1 WHERE id = $2',
+        [value, id]
       )
     }
 

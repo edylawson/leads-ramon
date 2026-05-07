@@ -60,6 +60,7 @@ export async function GET() {
         l.submit_date,
         l.stage_date,
         l.origem_lead,
+        NULLIF(to_jsonb(l)->>'pipeline_id', '')::INTEGER AS pipeline_id,
         l.created_at,
         l.responsavel_id,
         r.nome AS responsavel_nome,

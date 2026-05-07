@@ -42,6 +42,7 @@ app/
         notas/route.ts
     responsaveis/route.ts
     diagnostics/generate/route.ts
+    pipelines/route.ts
     agendamentos/route.ts
     agendamentos/disponibilidade/route.ts
     agendamentos/lead/route.ts
@@ -100,6 +101,7 @@ origem TEXT - 'brasil' | 'eua'
 stage TEXT
 stage_date, submit_date, created_at
 origem TEXT (mercado: brasil | eua)
+pipeline_id FK -> pipelines.id (pipeline operacional; origem continua sendo mercado/formulario)
 origem_lead TEXT (origem/campanha/ultimo clique; antigo canal_vendas)
 canal_vendas TEXT (legado temporario; nao usar em novas features)
 responsavel_id FK -> responsaveis.id
@@ -115,6 +117,7 @@ diagnostico_url TEXT
 | `notas` | Observacoes por lead com timestamp |
 | `diagnosticos` | HTMLs de diagnostico gerados pelo servico Python |
 | `agendamentos` | Reunioes marcadas na agenda unica e vinculadas a leads |
+| `pipelines` | Pipelines operacionais para segmentar visoes e acoes comerciais |
 
 ### Estagios validos (`VALID_STAGES`)
 

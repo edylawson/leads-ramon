@@ -1,11 +1,21 @@
 'use client'
 
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback, useRef, type FormEvent } from 'react'
 
 type Responsavel = {
   id: number
   nome: string
   email: string | null
+}
+
+type Pipeline = {
+  id: number | null
+  nome: string
+  slug: string
+  descricao: string | null
+  cor: string | null
+  ordem: number
+  ativo: boolean
 }
 
 type Lead = {
@@ -62,6 +72,7 @@ type Lead = {
   submit_date: string | null
   stage_date: string | null
   origem_lead: string | null
+  pipeline_id: number | null
   responsavel_id: number | null
   responsavel_nome: string | null
 }
@@ -120,7 +131,7 @@ type EditableLeadPatch = Partial<Pick<Lead, EditableLeadField>>
 type SortKey = 'date' | 'origem_lead' | 'name' | 'perfil' | 'segmento' | 'faturamento' | 'stage' | 'status' | 'diagnostico'
 type SortDirection = 'asc' | 'desc'
 type AppView = 'leads' | 'dashboard' | 'agenda'
-type OriginFilter = 'todos' | 'brasil' | 'eua'
+type PipelineFilter = 'todos' | string
 
 const STAGES: { value: string; label: string; color: string; bg: string; border: string }[] = [
   { value: 'nao_iniciado',       label: 'Não iniciado',       color: 'text-gray-400',   bg: 'bg-gray-800/60',     border: 'border-gray-700' },
@@ -142,6 +153,11 @@ const SEM_ORIGEM_LEAD_FILTER = '__sem_origem_lead'
 const SLA_STAGE_ALERT_DAYS = 2
 const DAY_IN_MS = 24 * 60 * 60 * 1000
 const FINAL_STAGES = new Set(['ganho', 'perdido'])
+const ALL_PIPELINES = 'todos'
+const DEFAULT_PIPELINES: Pipeline[] = [
+  { id: null, nome: 'Brasil', slug: 'brasil', descricao: 'Leads do formulario Brasil', cor: 'green', ordem: 1, ativo: true },
+  { id: null, nome: 'EUA', slug: 'eua', descricao: 'Leads do formulario EUA', cor: 'blue', ordem: 2, ativo: true },
+]
 
 function formatPhone(phone: string | null): string | null {
   if (!phone) return null
@@ -199,6 +215,18 @@ function getOriginLabel(origem: string) {
   if (origem === 'brasil') return 'Brasil'
   if (origem === 'eua') return 'EUA'
   return origem || 'Sem origem'
+}
+
+function getPipelineValue(pipeline: Pipeline) {
+  return pipeline.id !== null ? `id:${pipeline.id}` : `slug:${pipeline.slug}`
+}
+
+function matchesPipelineFilter(lead: Lead, pipelines: Pipeline[], pipelineFilter: PipelineFilter) {
+  if (pipelineFilter === ALL_PIPELINES) return true
+  const pipeline = pipelines.find(item => getPipelineValue(item) === pipelineFilter)
+  if (!pipeline) return true
+  if (pipeline.id !== null && lead.pipeline_id === pipeline.id) return true
+  return lead.origem === pipeline.slug
 }
 
 function getLeadOriginLabel(origin: string | null) {
@@ -559,12 +587,14 @@ function NotasPanel({ leadId, responsavelId }: { leadId: number; responsavelId: 
   )
 }
 
-function Modal({ lead, onClose, onDiagnosticoFound, responsaveis, onResponsavelChange, onLeadUpdate }: {
+function Modal({ lead, onClose, onDiagnosticoFound, responsaveis, pipelines, onResponsavelChange, onPipelineChange, onLeadUpdate }: {
   lead: Lead
   onClose: () => void
   onDiagnosticoFound?: (url: string) => void
   responsaveis: Responsavel[]
+  pipelines: Pipeline[]
   onResponsavelChange: (leadId: number, responsavel_id: number | null) => void
+  onPipelineChange: (leadId: number, pipeline_id: number | null) => void
   onLeadUpdate: (leadId: number, patch: EditableLeadPatch) => Promise<boolean>
 }) {
   const name = [lead.first_name, lead.last_name].filter(Boolean).join(' ') || '—'
@@ -626,6 +656,20 @@ function Modal({ lead, onClose, onDiagnosticoFound, responsaveis, onResponsavelC
                 <option value="">Sem responsável</option>
                 {responsaveis.map(r => (
                   <option key={r.id} value={r.id} className="bg-gray-900">{r.nome}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex gap-2 items-center pt-1">
+              <span className="text-gray-500 shrink-0 text-sm">Pipeline:</span>
+              <select
+                value={lead.pipeline_id ?? ''}
+                onChange={e => onPipelineChange(lead.id, e.target.value ? Number(e.target.value) : null)}
+                disabled={!pipelines.some(p => p.id !== null)}
+                className="text-xs rounded-lg px-2 py-1 border border-gray-700 bg-gray-800 text-gray-300 cursor-pointer focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <option value="">Sem pipeline</option>
+                {pipelines.filter(p => p.id !== null).map(p => (
+                  <option key={p.id} value={p.id ?? ''} className="bg-gray-900">{p.nome}</option>
                 ))}
               </select>
             </div>
@@ -1108,18 +1152,18 @@ function MetricBar({ label, value, max, detail, color = 'bg-indigo-500' }: {
   )
 }
 
-function DashboardView({ leads, origemLeadOptions, mercadoFilter, onMercadoChange, origemLeadFilter, onOrigemLeadChange, loading }: {
+function DashboardView({ leads, pipelines, origemLeadOptions, pipelineFilter, onPipelineChange, origemLeadFilter, onOrigemLeadChange, loading }: {
   leads: Lead[]
+  pipelines: Pipeline[]
   origemLeadOptions: string[]
-  mercadoFilter: OriginFilter
-  onMercadoChange: (value: OriginFilter) => void
+  pipelineFilter: PipelineFilter
+  onPipelineChange: (value: PipelineFilter) => void
   origemLeadFilter: string
   onOrigemLeadChange: (value: string) => void
   loading: boolean
 }) {
   const dashboardLeads = leads.filter(lead => {
-    const matchesMarket = mercadoFilter === 'todos' || lead.origem === mercadoFilter
-    return matchesMarket && matchesLeadOrigin(lead, origemLeadFilter)
+    return matchesPipelineFilter(lead, pipelines, pipelineFilter) && matchesLeadOrigin(lead, origemLeadFilter)
   })
   const activeLeads = dashboardLeads.filter(lead => !FINAL_STAGES.has(getLeadStage(lead)))
   const won = dashboardLeads.filter(lead => getLeadStage(lead) === 'ganho').length
@@ -1191,20 +1235,24 @@ function DashboardView({ leads, origemLeadOptions, mercadoFilter, onMercadoChang
       <div className="mb-6 rounded-3xl border border-gray-800 bg-gray-900/70 p-4">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">Filtros do dashboard</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">Pipelines do dashboard</p>
             <div className="mt-3 flex flex-wrap gap-2">
-              {([
-                { value: 'todos', label: 'Todos' },
-                { value: 'brasil', label: 'Brasil' },
-                { value: 'eua', label: 'EUA' },
-              ] as const).map(option => (
-                <DashboardFilterButton
-                  key={option.value}
-                  active={mercadoFilter === option.value}
-                  label={option.label}
-                  onClick={() => onMercadoChange(option.value)}
-                />
-              ))}
+              <DashboardFilterButton
+                active={pipelineFilter === ALL_PIPELINES}
+                label="Todos"
+                onClick={() => onPipelineChange(ALL_PIPELINES)}
+              />
+              {pipelines.map(option => {
+                const value = getPipelineValue(option)
+                return (
+                  <DashboardFilterButton
+                    key={value}
+                    active={pipelineFilter === value}
+                    label={option.nome}
+                    onClick={() => onPipelineChange(value)}
+                  />
+                )
+              })}
             </div>
           </div>
 
@@ -1538,8 +1586,13 @@ export default function Page() {
   const [dateTo, setDateTo] = useState('')
   const [loading, setLoading] = useState(true)
   const [responsaveis, setResponsaveis] = useState<Responsavel[]>([])
-  const [origemFilter, setOrigemFilter] = useState<OriginFilter>('todos')
-  const [dashboardMercadoFilter, setDashboardMercadoFilter] = useState<OriginFilter>('todos')
+  const [pipelines, setPipelines] = useState<Pipeline[]>(DEFAULT_PIPELINES)
+  const [pipelineFilter, setPipelineFilter] = useState<PipelineFilter>(ALL_PIPELINES)
+  const [dashboardPipelineFilter, setDashboardPipelineFilter] = useState<PipelineFilter>(ALL_PIPELINES)
+  const [showPipelineForm, setShowPipelineForm] = useState(false)
+  const [pipelineName, setPipelineName] = useState('')
+  const [pipelineError, setPipelineError] = useState('')
+  const [creatingPipeline, setCreatingPipeline] = useState(false)
   const [dashboardOrigemLeadFilter, setDashboardOrigemLeadFilter] = useState<string>('')
   const [stageFilter, setStageFilter] = useState<string>('')
   const [stageDropdownOpen, setStageDropdownOpen] = useState(false)
@@ -1565,6 +1618,12 @@ export default function Page() {
       .then(r => r.json())
       .then(setResponsaveis)
       .catch(() => {})
+    fetch('/api/pipelines')
+      .then(r => r.json())
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) setPipelines(data)
+      })
+      .catch(() => setPipelines(DEFAULT_PIPELINES))
   }, [])
 
   // Fecha dropdowns ao clicar fora
@@ -1610,7 +1669,7 @@ export default function Page() {
 
   useEffect(() => {
     let result = leads
-    if (origemFilter !== 'todos') result = result.filter(l => l.origem === origemFilter)
+    if (pipelineFilter !== ALL_PIPELINES) result = result.filter(l => matchesPipelineFilter(l, pipelines, pipelineFilter))
     if (filter !== 'all') result = result.filter(l => l.response_type === filter)
     if (stageFilter) result = result.filter(l => (l.stage || 'nao_iniciado') === stageFilter)
     if (perfilFilter === SEM_PERFIL_FILTER) {
@@ -1642,7 +1701,7 @@ export default function Page() {
       result = [...result].sort((a, b) => compareLeads(a, b, sortKey, sortDirection))
     }
     setFiltered(result)
-  }, [leads, search, filter, origemFilter, stageFilter, perfilFilter, faturamentoFilter, origemLeadFilter, dateFrom, dateTo, sortKey, sortDirection])
+  }, [leads, pipelines, search, filter, pipelineFilter, stageFilter, perfilFilter, faturamentoFilter, origemLeadFilter, dateFrom, dateTo, sortKey, sortDirection])
 
   const faturamentoOptions = Array.from(
     new Set(leads.map(l => l.faturamento_anual).filter((value): value is string => Boolean(value)))
@@ -1723,6 +1782,26 @@ export default function Page() {
       .catch(() => alert('Erro ao salvar responsável. Tente novamente.'))
   }
 
+  const handlePipelineChange = (leadId: number, pipeline_id: number | null) => {
+    const previousLead = leads.find(l => l.id === leadId)
+    const previousPipelineId = previousLead?.pipeline_id ?? null
+
+    setLeads(prev => prev.map(l => l.id === leadId ? { ...l, pipeline_id } : l))
+    setSelected(prev => prev?.id === leadId ? { ...prev, pipeline_id } : prev)
+
+    fetch(`/api/leads/${leadId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pipeline_id }),
+    })
+      .then(res => { if (!res.ok) throw new Error(`HTTP ${res.status}`) })
+      .catch(() => {
+        setLeads(prev => prev.map(l => l.id === leadId ? { ...l, pipeline_id: previousPipelineId } : l))
+        setSelected(prev => prev?.id === leadId ? { ...prev, pipeline_id: previousPipelineId } : prev)
+        alert('Erro ao salvar pipeline. Confira se a migration de pipelines ja foi aplicada.')
+      })
+  }
+
   const handleLeadDataUpdate = async (leadId: number, patch: EditableLeadPatch) => {
     try {
       const res = await fetch(`/api/leads/${leadId}`, {
@@ -1740,6 +1819,35 @@ export default function Page() {
     }
   }
 
+  const handleCreatePipeline = async (event: FormEvent) => {
+    event.preventDefault()
+    if (!pipelineName.trim()) return
+
+    setCreatingPipeline(true)
+    setPipelineError('')
+    try {
+      const res = await fetch('/api/pipelines', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nome: pipelineName }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Erro ao criar pipeline')
+
+      setPipelines(prev => {
+        const next = prev.filter(item => item.slug !== data.slug && item.id !== data.id)
+        return [...next, data].sort((a, b) => a.ordem - b.ordem || a.nome.localeCompare(b.nome, 'pt-BR'))
+      })
+      setPipelineFilter(getPipelineValue(data))
+      setPipelineName('')
+      setShowPipelineForm(false)
+    } catch (error) {
+      setPipelineError(error instanceof Error ? error.message : 'Erro ao criar pipeline')
+    } finally {
+      setCreatingPipeline(false)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100">
       <div className="flex min-h-screen flex-col lg:flex-row">
@@ -1748,9 +1856,10 @@ export default function Page() {
           {activeView === 'dashboard' ? (
             <DashboardView
               leads={leads}
+              pipelines={pipelines}
               origemLeadOptions={origemLeadOptions}
-              mercadoFilter={dashboardMercadoFilter}
-              onMercadoChange={setDashboardMercadoFilter}
+              pipelineFilter={dashboardPipelineFilter}
+              onPipelineChange={setDashboardPipelineFilter}
               origemLeadFilter={dashboardOrigemLeadFilter}
               onOrigemLeadChange={setDashboardOrigemLeadFilter}
               loading={loading}
@@ -1780,26 +1889,71 @@ export default function Page() {
           </div>
         </div>
 
-        {/* Toggle Brasil / EUA */}
-        <div className="flex gap-2 mb-4">
-          {([
-            { value: 'todos', label: '🌎 Todos' },
-            { value: 'brasil', label: '🇧🇷 Brasil' },
-            { value: 'eua',    label: '🇺🇸 EUA' },
-          ] as const).map(o => (
+        {/* Pipelines */}
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setPipelineFilter(ALL_PIPELINES)}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              pipelineFilter === ALL_PIPELINES
+                ? 'bg-indigo-600 text-white'
+                : 'bg-gray-900 border border-gray-700 text-gray-400 hover:text-white'
+            }`}
+          >
+            Todos
+          </button>
+          {pipelines.map(pipeline => {
+            const value = getPipelineValue(pipeline)
+            return (
             <button
-              key={o.value}
-              onClick={() => setOrigemFilter(o.value)}
+              key={value}
+              onClick={() => setPipelineFilter(value)}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                origemFilter === o.value
+                pipelineFilter === value
                   ? 'bg-indigo-600 text-white'
                   : 'bg-gray-900 border border-gray-700 text-gray-400 hover:text-white'
               }`}
             >
-              {o.label}
+              {pipeline.nome}
             </button>
-          ))}
+            )
+          })}
+          <button
+            type="button"
+            onClick={() => { setShowPipelineForm(prev => !prev); setPipelineError('') }}
+            className="rounded-lg border border-dashed border-gray-700 bg-gray-900 px-3 py-2 text-sm font-semibold text-gray-500 transition-colors hover:border-indigo-600 hover:text-indigo-300"
+          >
+            + Pipeline
+          </button>
         </div>
+
+        {showPipelineForm && (
+          <form onSubmit={handleCreatePipeline} className="mb-4 flex flex-col gap-2 rounded-2xl border border-gray-800 bg-gray-900/70 p-3 sm:flex-row sm:items-center">
+            <input
+              value={pipelineName}
+              onChange={event => setPipelineName(event.target.value)}
+              placeholder="Nome do novo pipeline..."
+              className="min-w-0 flex-1 rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-gray-100 placeholder-gray-600 outline-none focus:border-indigo-500"
+            />
+            <div className="flex gap-2">
+              <button
+                type="submit"
+                disabled={creatingPipeline || !pipelineName.trim()}
+                className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-indigo-500 disabled:cursor-not-allowed disabled:bg-gray-700"
+              >
+                {creatingPipeline ? 'Criando...' : 'Criar'}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setShowPipelineForm(false); setPipelineName(''); setPipelineError('') }}
+                className="rounded-lg border border-gray-700 px-3 py-2 text-sm font-semibold text-gray-400 transition-colors hover:text-white"
+              >
+                Cancelar
+              </button>
+            </div>
+            {pipelineError && <p className="text-xs text-red-400 sm:max-w-[320px]">{pipelineError}</p>}
+          </form>
+        )}
 
         {/* Filtros */}
         <div className="flex flex-col gap-3 mb-4">
@@ -2123,7 +2277,9 @@ export default function Page() {
           onClose={() => setSelected(null)}
           onDiagnosticoFound={(url) => setLeads(prev => prev.map(l => l.id === selected.id ? { ...l, diagnostico_url: url } : l))}
           responsaveis={responsaveis}
+          pipelines={pipelines}
           onResponsavelChange={handleResponsavelChange}
+          onPipelineChange={handlePipelineChange}
           onLeadUpdate={handleLeadDataUpdate}
         />
       )}
