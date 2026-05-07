@@ -2015,7 +2015,7 @@ export default function Page() {
                       </div>
                     )}
                   </th>
-                  <th className="w-[130px] text-left px-4 py-3 hidden md:table-cell">
+                  <th className="w-[150px] text-left px-4 py-3 hidden md:table-cell">
                     <HeaderControl label="Diagnóstico" column="diagnostico" activeSort={sortKey} direction={sortDirection} onSort={handleSort} />
                   </th>
                 </tr>
@@ -2100,8 +2100,8 @@ export default function Page() {
                       </td>
                       <td className="px-4 py-3 hidden md:table-cell">
                         {lead.diagnostico_url
-                          ? <a href={lead.diagnostico_url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-indigo-900/50 text-indigo-300 border border-indigo-800 hover:bg-indigo-800/50 hover:text-white transition-colors">Abrir →</a>
-                          : <span className="px-2 py-0.5 rounded-full text-xs bg-gray-800/50 text-gray-500 border border-gray-800">Não gerado</span>
+                          ? <a href={lead.diagnostico_url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-indigo-900/50 text-indigo-300 border border-indigo-800 hover:bg-indigo-800/50 hover:text-white transition-colors">Abrir diagnóstico</a>
+                          : <span className="px-2 py-0.5 rounded-full text-xs bg-gray-800/50 text-gray-500 border border-gray-800">Sem diagnóstico</span>
                         }
                       </td>
                     </tr>
