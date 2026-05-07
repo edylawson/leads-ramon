@@ -884,13 +884,13 @@ function SortButton({ column, activeSort, direction, onSort }: {
       type="button"
       onClick={e => { e.stopPropagation(); onSort(column) }}
       title={title}
-      className={`inline-flex h-5 w-5 items-center justify-center rounded border transition-colors ${
+      className={`inline-flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors ${
         active
           ? 'border-indigo-500/60 bg-indigo-500/10 text-indigo-300'
           : 'border-transparent text-gray-600 hover:border-gray-700 hover:bg-gray-800 hover:text-gray-300'
       }`}
     >
-      <svg className="h-3.5 w-3.5" viewBox="0 0 10 14" aria-hidden="true">
+      <svg className="h-3 w-3" viewBox="0 0 10 14" aria-hidden="true">
         <path d="M5 1 1.5 5h7L5 1Z" className={active && direction === 'asc' ? 'fill-indigo-300' : 'fill-current'} />
         <path d="M5 13 8.5 9h-7L5 13Z" className={active && direction === 'desc' ? 'fill-indigo-300' : 'fill-current'} />
       </svg>
@@ -908,12 +908,12 @@ function HeaderControl({ label, column, activeSort, direction, onSort, onFilterC
   filterActive?: boolean
   filterOpen?: boolean
 }) {
-  const labelClass = `flex items-center gap-1.5 uppercase tracking-wider transition-colors ${
+  const labelClass = `flex min-w-0 items-center gap-1 uppercase tracking-wider transition-colors ${
     filterActive ? 'text-indigo-400' : 'hover:text-white'
   }`
 
   return (
-    <div className="flex items-center gap-1.5">
+    <div className="flex min-w-0 items-center gap-1">
       {onFilterClick ? (
         <button type="button" onClick={onFilterClick} className={labelClass}>
           {label}
@@ -1901,7 +1901,7 @@ export default function Page() {
                   <th className="text-left px-4 py-3">
                     <HeaderControl label="Nome" column="name" activeSort={sortKey} direction={sortDirection} onSort={handleSort} />
                   </th>
-                  <th ref={perfilDropdownRef} className="w-[76px] text-left px-4 py-3 hidden md:table-cell relative">
+                  <th ref={perfilDropdownRef} className="w-[92px] text-left px-4 py-3 hidden md:table-cell relative">
                     <HeaderControl
                       label="Perfil"
                       column="perfil"
@@ -1947,7 +1947,7 @@ export default function Page() {
                       </div>
                     )}
                   </th>
-                  <th ref={faturamentoDropdownRef} className="w-[160px] text-left px-4 py-3 hidden lg:table-cell relative">
+                  <th ref={faturamentoDropdownRef} className="w-[176px] text-left px-4 py-3 hidden lg:table-cell relative">
                     <HeaderControl
                       label="Faturamento"
                       column="faturamento"
