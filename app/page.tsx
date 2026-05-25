@@ -225,7 +225,9 @@ function matchesPipelineFilter(lead: Lead, pipelines: Pipeline[], pipelineFilter
   if (pipelineFilter === ALL_PIPELINES) return true
   const pipeline = pipelines.find(item => getPipelineValue(item) === pipelineFilter)
   if (!pipeline) return true
-  if (pipeline.id !== null && lead.pipeline_id === pipeline.id) return true
+  if (pipeline.id !== null) {
+    return lead.pipeline_id !== null ? lead.pipeline_id === pipeline.id : lead.origem === pipeline.slug
+  }
   return lead.origem === pipeline.slug
 }
 

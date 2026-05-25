@@ -19,7 +19,8 @@ CREATE INDEX IF NOT EXISTS idx_pipelines_ativo_ordem ON pipelines(ativo, ordem);
 INSERT INTO pipelines (nome, slug, descricao, cor, ordem)
 VALUES
   ('Brasil', 'brasil', 'Leads do formulario Brasil', 'green', 1),
-  ('EUA', 'eua', 'Leads do formulario EUA', 'blue', 2)
+  ('EUA', 'eua', 'Leads do formulario EUA', 'blue', 2),
+  ('Editora', 'editora', 'Leads da operacao Editora', 'amber', 3)
 ON CONFLICT (slug) DO UPDATE
 SET nome = EXCLUDED.nome,
     descricao = EXCLUDED.descricao,
