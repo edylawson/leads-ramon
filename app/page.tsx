@@ -160,6 +160,7 @@ const PERFIL_SORT_ORDER: Record<string, number> = { A: 0, B: 1, C: 2 }
 const STATUS_SORT_ORDER: Record<string, number> = { completed: 0, partial: 1 }
 const SEM_PERFIL_FILTER = '__sem_perfil'
 const SEM_ORIGEM_LEAD_FILTER = '__sem_origem_lead'
+const SEM_SOURCE_FILTER = '__sem_source'
 const SLA_STAGE_ALERT_DAYS = 2
 const DAY_IN_MS = 24 * 60 * 60 * 1000
 const FINAL_STAGES = new Set(['ganho', 'perdido'])
@@ -1627,6 +1628,7 @@ export default function Page() {
   const [origemLeadFilter, setOrigemLeadFilter] = useState<string>('')
   const [origemLeadDropdownOpen, setOrigemLeadDropdownOpen] = useState(false)
   const origemLeadDropdownRef = useRef<HTMLTableCellElement>(null)
+  const [sourceFilter, setSourceFilter] = useState<string>('')
   const [sortKey, setSortKey] = useState<SortKey | null>('date')
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
 
@@ -1700,6 +1702,11 @@ export default function Page() {
     }
     if (faturamentoFilter) result = result.filter(l => l.faturamento_anual === faturamentoFilter)
     if (origemLeadFilter) result = result.filter(l => l.origem_lead === origemLeadFilter)
+    if (sourceFilter === SEM_SOURCE_FILTER) {
+      result = result.filter(l => !l.utm_source)
+    } else if (sourceFilter) {
+      result = result.filter(l => l.utm_source === sourceFilter)
+    }
     if (search.trim()) {
       const q = search.toLowerCase()
       result = result.filter(l =>
@@ -1722,7 +1729,7 @@ export default function Page() {
       result = [...result].sort((a, b) => compareLeads(a, b, sortKey, sortDirection))
     }
     setFiltered(result)
-  }, [leads, pipelines, search, filter, pipelineFilter, stageFilter, perfilFilter, faturamentoFilter, origemLeadFilter, dateFrom, dateTo, sortKey, sortDirection])
+  }, [leads, pipelines, search, filter, pipelineFilter, stageFilter, perfilFilter, faturamentoFilter, origemLeadFilter, sourceFilter, dateFrom, dateTo, sortKey, sortDirection])
 
   const faturamentoOptions = Array.from(
     new Set(leads.map(l => l.faturamento_anual).filter((value): value is string => Boolean(value)))
@@ -1736,6 +1743,14 @@ export default function Page() {
   const origemLeadOptions = Array.from(
     new Set(leads.map(l => l.origem_lead).filter((value): value is string => Boolean(value)))
   ).sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true, sensitivity: 'base' }))
+
+  const sourceBaseLeads = pipelineFilter === ALL_PIPELINES
+    ? leads
+    : leads.filter(lead => matchesPipelineFilter(lead, pipelines, pipelineFilter))
+  const sourceOptions = Array.from(
+    new Set(sourceBaseLeads.map(l => l.utm_source).filter((value): value is string => Boolean(value)))
+  ).sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true, sensitivity: 'base' }))
+  const hasNoSource = sourceBaseLeads.some(lead => !lead.utm_source)
 
   const total = filtered.length
   const completed = filtered.filter(l => l.response_type === 'completed').length
@@ -2017,6 +2032,20 @@ export default function Page() {
               onChange={e => setDateTo(e.target.value)}
               className="bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-indigo-500 [color-scheme:dark]"
             />
+            <label className="flex items-center gap-2 sm:ml-2">
+              <span className="text-gray-500 text-sm shrink-0">Source:</span>
+              <select
+                value={sourceFilter}
+                onChange={e => setSourceFilter(e.target.value)}
+                className="min-w-[170px] bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-indigo-500"
+              >
+                <option value="">Todos os sources</option>
+                {hasNoSource && <option value={SEM_SOURCE_FILTER}>Sem source</option>}
+                {sourceOptions.map(option => (
+                  <option key={option} value={option}>{option}</option>
+                ))}
+              </select>
+            </label>
             {(dateFrom || dateTo) && (
               <button
                 onClick={() => { setDateFrom(''); setDateTo('') }}
