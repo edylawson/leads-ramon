@@ -138,6 +138,18 @@ type EditableLeadField =
 
 type EditableLeadPatch = Partial<Pick<Lead, EditableLeadField>>
 
+type ManualLeadPayload = {
+  nome: string
+  email: string
+  phone: string
+  pipeline_id: number | null
+  empresa?: string | null
+  origem_lead?: string | null
+  utm_source?: string | null
+  utm_medium?: string | null
+  utm_campaign?: string | null
+}
+
 type SortKey = 'date' | 'origem_lead' | 'name' | 'perfil' | 'segmento' | 'faturamento' | 'stage' | 'status' | 'diagnostico'
 type SortDirection = 'asc' | 'desc'
 type AppView = 'leads' | 'dashboard' | 'agenda'
@@ -230,6 +242,12 @@ function getOriginLabel(origem: string) {
 
 function getPipelineValue(pipeline: Pipeline) {
   return pipeline.id !== null ? `id:${pipeline.id}` : `slug:${pipeline.slug}`
+}
+
+function getPipelineIdFromFilter(pipelines: Pipeline[], pipelineFilter: PipelineFilter) {
+  if (pipelineFilter === ALL_PIPELINES) return null
+  const pipeline = pipelines.find(item => getPipelineValue(item) === pipelineFilter)
+  return pipeline?.id ?? null
 }
 
 function matchesPipelineFilter(lead: Lead, pipelines: Pipeline[], pipelineFilter: PipelineFilter) {
@@ -916,6 +934,128 @@ function EditableRow({ label, field, value, link, valueClass, multiline = false,
           abrir
         </a>
       )}
+    </div>
+  )
+}
+
+function NewLeadModal({ pipelines, defaultPipelineId, defaultOrigemLead, defaultUtmSource, onClose, onCreate }: {
+  pipelines: Pipeline[]
+  defaultPipelineId: number | null
+  defaultOrigemLead: string
+  defaultUtmSource: string
+  onClose: () => void
+  onCreate: (payload: ManualLeadPayload) => Promise<void>
+}) {
+  const realPipelines = pipelines.filter(pipeline => pipeline.id !== null)
+  const initialPipelineId = defaultPipelineId ?? realPipelines[0]?.id ?? null
+  const [nome, setNome] = useState('')
+  const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
+  const [empresa, setEmpresa] = useState('')
+  const [pipelineId, setPipelineId] = useState<number | null>(initialPipelineId)
+  const [origemLead, setOrigemLead] = useState(defaultOrigemLead)
+  const [utmSource, setUtmSource] = useState(defaultUtmSource)
+  const [utmMedium, setUtmMedium] = useState('')
+  const [utmCampaign, setUtmCampaign] = useState(defaultOrigemLead)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  const submit = async (event: FormEvent) => {
+    event.preventDefault()
+    if (!nome.trim() || !email.trim() || !phone.trim()) {
+      setError('Preencha nome, email e telefone.')
+      return
+    }
+
+    setSaving(true)
+    setError('')
+    try {
+      await onCreate({
+        nome: nome.trim(),
+        email: email.trim(),
+        phone: phone.trim(),
+        pipeline_id: pipelineId,
+        empresa: empresa.trim() || null,
+        origem_lead: origemLead.trim() || null,
+        utm_source: utmSource.trim() || null,
+        utm_medium: utmMedium.trim() || null,
+        utm_campaign: utmCampaign.trim() || null,
+      })
+      onClose()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Nao foi possivel criar o lead.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={onClose}>
+      <form
+        onSubmit={submit}
+        className="w-full max-w-xl rounded-2xl border border-gray-700 bg-gray-900 p-6 shadow-2xl"
+        onClick={event => event.stopPropagation()}
+      >
+        <div className="mb-5 flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-indigo-300">Cadastro manual</p>
+            <h2 className="mt-1 text-xl font-bold text-white">Novo lead</h2>
+            <p className="mt-1 text-sm text-gray-500">Nome, email e telefone sao obrigatorios. O restante pode ficar em branco.</p>
+          </div>
+          <button type="button" onClick={onClose} className="text-xl leading-none text-gray-500 transition-colors hover:text-white">x</button>
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <label className="grid gap-1.5 sm:col-span-2">
+            <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">Nome *</span>
+            <input value={nome} onChange={event => setNome(event.target.value)} autoFocus className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-gray-100 outline-none focus:border-indigo-500" placeholder="Ex: Maria Silva" />
+          </label>
+          <label className="grid gap-1.5">
+            <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">Email *</span>
+            <input type="email" value={email} onChange={event => setEmail(event.target.value)} className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-gray-100 outline-none focus:border-indigo-500" placeholder="email@empresa.com" />
+          </label>
+          <label className="grid gap-1.5">
+            <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">Telefone *</span>
+            <input value={phone} onChange={event => setPhone(event.target.value)} className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-gray-100 outline-none focus:border-indigo-500" placeholder="+55..." />
+          </label>
+          <label className="grid gap-1.5">
+            <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">Pipeline</span>
+            <select value={pipelineId ?? ''} onChange={event => setPipelineId(event.target.value ? Number(event.target.value) : null)} className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-gray-100 outline-none focus:border-indigo-500">
+              <option value="">Sem pipeline</option>
+              {realPipelines.map(pipeline => (
+                <option key={pipeline.id} value={pipeline.id ?? ''}>{pipeline.nome}</option>
+              ))}
+            </select>
+          </label>
+          <label className="grid gap-1.5">
+            <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">Empresa</span>
+            <input value={empresa} onChange={event => setEmpresa(event.target.value)} className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-gray-100 outline-none focus:border-indigo-500" placeholder="Opcional" />
+          </label>
+          <label className="grid gap-1.5">
+            <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">Origem</span>
+            <input value={origemLead} onChange={event => setOrigemLead(event.target.value)} className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-gray-100 outline-none focus:border-indigo-500" placeholder="Ex: 10XPRIVATE-MAI26" />
+          </label>
+          <label className="grid gap-1.5">
+            <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">Source</span>
+            <input value={utmSource} onChange={event => setUtmSource(event.target.value)} className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-gray-100 outline-none focus:border-indigo-500" placeholder="Ex: FORM-STAND" />
+          </label>
+          <label className="grid gap-1.5">
+            <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">Medium</span>
+            <input value={utmMedium} onChange={event => setUtmMedium(event.target.value)} className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-gray-100 outline-none focus:border-indigo-500" placeholder="Opcional" />
+          </label>
+          <label className="grid gap-1.5">
+            <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">Campaign</span>
+            <input value={utmCampaign} onChange={event => setUtmCampaign(event.target.value)} className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-gray-100 outline-none focus:border-indigo-500" placeholder="Opcional" />
+          </label>
+        </div>
+
+        {error && <div className="mt-4 rounded-lg border border-red-800 bg-red-950/40 px-3 py-2 text-sm text-red-200">{error}</div>}
+
+        <div className="mt-6 flex justify-end gap-2">
+          <button type="button" onClick={onClose} disabled={saving} className="rounded-lg border border-gray-700 px-4 py-2 text-sm font-semibold text-gray-400 transition-colors hover:text-white disabled:opacity-60">Cancelar</button>
+          <button type="submit" disabled={saving} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-indigo-500 disabled:bg-gray-700">{saving ? 'Salvando...' : 'Criar lead'}</button>
+        </div>
+      </form>
     </div>
   )
 }
@@ -1612,6 +1752,7 @@ export default function Page() {
   const [pipelineFilter, setPipelineFilter] = useState<PipelineFilter>(ALL_PIPELINES)
   const [dashboardPipelineFilter, setDashboardPipelineFilter] = useState<PipelineFilter>(ALL_PIPELINES)
   const [showPipelineForm, setShowPipelineForm] = useState(false)
+  const [showNewLeadModal, setShowNewLeadModal] = useState(false)
   const [pipelineName, setPipelineName] = useState('')
   const [pipelineError, setPipelineError] = useState('')
   const [creatingPipeline, setCreatingPipeline] = useState(false)
@@ -1884,6 +2025,21 @@ export default function Page() {
     }
   }
 
+  const handleCreateManualLead = async (payload: ManualLeadPayload) => {
+    const res = await fetch('/api/leads', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    const data = await res.json()
+    if (!res.ok) {
+      throw new Error(data.error || 'Erro ao criar lead')
+    }
+
+    setLeads(prev => [data, ...prev])
+    setSelected(data)
+  }
+
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100">
       <div className="flex min-h-screen flex-col lg:flex-row">
@@ -1960,6 +2116,13 @@ export default function Page() {
             className="rounded-lg border border-dashed border-gray-700 bg-gray-900 px-3 py-2 text-sm font-semibold text-gray-500 transition-colors hover:border-indigo-600 hover:text-indigo-300"
           >
             + Pipeline
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowNewLeadModal(true)}
+            className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-bold text-white transition-colors hover:bg-indigo-500"
+          >
+            + Lead
           </button>
         </div>
 
@@ -2320,6 +2483,17 @@ export default function Page() {
           )}
         </main>
       </div>
+
+      {showNewLeadModal && (
+        <NewLeadModal
+          pipelines={pipelines}
+          defaultPipelineId={getPipelineIdFromFilter(pipelines, pipelineFilter)}
+          defaultOrigemLead={origemLeadFilter}
+          defaultUtmSource={sourceFilter && sourceFilter !== SEM_SOURCE_FILTER ? sourceFilter : ''}
+          onClose={() => setShowNewLeadModal(false)}
+          onCreate={handleCreateManualLead}
+        />
+      )}
 
       {selected && (
         <Modal

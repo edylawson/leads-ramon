@@ -16,7 +16,7 @@ const FILES = [
   },
   {
     path: process.env.EDITORA_FORM_DANI_CSV || 'C:/Users/edyma/Downloads/LEADS EDITORA 1 - FORM DANI.csv',
-    utmSource: 'FORM-DANI',
+    utmSource: 'FORM-STAND',
     utmMedium: 'FORM-STAND',
   },
 ]
