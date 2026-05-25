@@ -34,6 +34,11 @@ const EDITABLE_TEXT_FIELDS = [
   'monetiza_conhecimento',
   'interesse_mentoria',
   'interesse_livro',
+  'utm_source',
+  'utm_medium',
+  'utm_campaign',
+  'utm_content',
+  'utm_term',
 ] as const
 
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {

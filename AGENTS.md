@@ -104,6 +104,7 @@ origem TEXT (mercado: brasil | eua)
 pipeline_id FK -> pipelines.id (pipeline operacional; origem continua sendo mercado/formulario)
 origem_lead TEXT (origem/campanha/ultimo clique; antigo canal_vendas)
 canal_vendas TEXT (legado temporario; nao usar em novas features)
+utm_source, utm_medium, utm_campaign, utm_content, utm_term
 responsavel_id FK -> responsaveis.id
 diagnostico_url TEXT
 ```

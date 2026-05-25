@@ -72,6 +72,11 @@ type Lead = {
   submit_date: string | null
   stage_date: string | null
   origem_lead: string | null
+  utm_source: string | null
+  utm_medium: string | null
+  utm_campaign: string | null
+  utm_content: string | null
+  utm_term: string | null
   pipeline_id: number | null
   responsavel_id: number | null
   responsavel_nome: string | null
@@ -125,6 +130,11 @@ type EditableLeadField =
   | 'monetiza_conhecimento'
   | 'interesse_mentoria'
   | 'interesse_livro'
+  | 'utm_source'
+  | 'utm_medium'
+  | 'utm_campaign'
+  | 'utm_content'
+  | 'utm_term'
 
 type EditableLeadPatch = Partial<Pick<Lead, EditableLeadField>>
 
@@ -718,6 +728,15 @@ function Modal({ lead, onClose, onDiagnosticoFound, responsaveis, pipelines, onR
             <EditableRow label="Monetiza conhecimento" field="monetiza_conhecimento" value={lead.monetiza_conhecimento} onSave={saveField} saving={savingField === 'monetiza_conhecimento'} />
             <EditableRow label="Interesse mentoria" field="interesse_mentoria" value={lead.interesse_mentoria} onSave={saveField} saving={savingField === 'interesse_mentoria'} />
             <EditableRow label="Interesse livro" field="interesse_livro" value={lead.interesse_livro} onSave={saveField} saving={savingField === 'interesse_livro'} />
+          </Section>
+
+          {/* UTMs */}
+          <Section title="UTMs">
+            <EditableRow label="Source" field="utm_source" value={lead.utm_source} onSave={saveField} saving={savingField === 'utm_source'} />
+            <EditableRow label="Medium" field="utm_medium" value={lead.utm_medium} onSave={saveField} saving={savingField === 'utm_medium'} />
+            <EditableRow label="Campaign" field="utm_campaign" value={lead.utm_campaign} onSave={saveField} saving={savingField === 'utm_campaign'} />
+            <EditableRow label="Content" field="utm_content" value={lead.utm_content} onSave={saveField} saving={savingField === 'utm_content'} />
+            <EditableRow label="Term" field="utm_term" value={lead.utm_term} onSave={saveField} saving={savingField === 'utm_term'} />
           </Section>
 
           {/* Intenção */}
@@ -1684,7 +1703,7 @@ export default function Page() {
     if (search.trim()) {
       const q = search.toLowerCase()
       result = result.filter(l =>
-        [l.first_name, l.last_name, l.empresa, l.email, l.origem_lead].some(v => v?.toLowerCase().includes(q))
+        [l.first_name, l.last_name, l.empresa, l.email, l.origem_lead, l.utm_source, l.utm_medium, l.utm_campaign].some(v => v?.toLowerCase().includes(q))
       )
     }
     if (dateFrom) {
